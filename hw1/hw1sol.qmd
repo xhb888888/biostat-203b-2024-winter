@@ -107,13 +107,17 @@ done
 5. Display the first few lines of `admissions.csv.gz`. How many rows are in this data file? How many unique patients (identified by `subject_id`) are in this data file? Do they match the number of patients listed in the `patients.csv.gz` file? (Hint: combine Linux commands `zcat <`, `head`/`tail`, `awk`, `sort`, `uniq`, `wc`, and so on.)
 ```{bash}
 #| eval: false
-zcat < ~/mimic/hosp/admissions.csv.gz | head
+zcat < ~/mimic/hosp/admissions.csv.gz | head -n 5
 zcat < ~/mimic/hosp/admissions.csv.gz | wc -l
-zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $0}' | sort | uniq | wc -l
-zcat < ~/mimic/hosp/patients.csv.gz | awk -F, '{print $0}' | sort | uniq | wc -l
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $1}' | sort | uniq | wc -l
+zcat < ~/mimic/hosp/patients.csv.gz | awk -F, '{print $1}' | sort | uniq | wc -l
 ```
 
 6. What are the possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `ethnicity`? Also report the count for each unique value of these variables. (Hint: combine Linux commands `zcat`, `head`/`tail`, `awk`, `uniq -c`, `wc`, and so on; skip the header line.)
+
+```{bash}
+#| eval: false
+```
 
 7. _To compress, or not to compress. That's the question._ Let's focus on the big data file `labevents.csv.gz`. Compare compressed gz file size to the uncompressed file size. Compare the run times of `zcat < ~/mimic/labevents.csv.gz | wc -l` versus `wc -l labevents.csv`. Discuss the trade off between storage and speed for big data files. (Hint: `gzip -dk < FILENAME.gz > ./FILENAME`. Remember to delete the large `labevents.csv` file after the exercise.)
 
@@ -132,8 +136,11 @@ for char in Elizabeth Jane Lydia Darcy
 do
   echo $char:
   # some bash commands here
+  grep -i $char pg42671.txt | wc -l
 done
 ```
+
+**Answer:** `wget -nc` downloads the file from the URL if it does not already exist in the current directory.
 
 2. What's the difference between the following two commands?
 ```{bash}
@@ -145,6 +152,8 @@ and
 #| eval: false
 echo 'hello, world' >> test2.txt
 ```
+
+**Answer:** The first command overwrites the contents of `test1.txt` with the string `hello, world`. The second command appends the string `hello, world` to the end of `test2.txt`.
 
 3. Using your favorite text editor (e.g., `vi`), type the following and save the file as `middle.sh`:
 ```{bash eval=FALSE}
@@ -159,7 +168,7 @@ Using `chmod` to make the file executable by the owner, and run
 ./middle.sh pg42671.txt 20 5
 ```
 Explain the output. Explain the meaning of `"$1"`, `"$2"`, and `"$3"` in this shell script. Why do we need the first line of the shell script?
-
+**Answer:** The output is the 5 lines of text starting at line 16 of `pg42671.txt`. Each line of output corresponds to line 16, 17, 18, 19, 20 accordingly. `"$1"` is the first argument passed to the script, `"$2"` is the second argument passed to the script, and `"$3"` is the third argument passed to the script. The first line of the shell script is needed to tell the shell which program to use to execute the script.
 ## Q5. More fun with Linux
 
 Try following commands in Bash and interpret the results: `cal`, `cal 2024`, `cal 9 1752` (anything unusual?), `date`, `hostname`, `arch`, `uname -a`, `uptime`, `who am i`, `who`, `w`, `id`, `last | head`, `echo {con,pre}{sent,fer}{s,ed}`, `time sleep 5`, `history | tail`.
