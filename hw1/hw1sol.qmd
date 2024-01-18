@@ -118,11 +118,64 @@ zcat < ~/mimic/hosp/patients.csv.gz | awk -F, '{print $1}' | sort | uniq | wc -l
 
 6. What are the possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `race`? Also report the count for each unique value of these variables. (Hint: combine Linux commands `zcat`, `head`/`tail`, `awk`, `uniq -c`, `wc`, and so on; skip the header line.)
 
+**Answer:** The possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `race` are listed below. The counts for each unique value of these variables are also listed below.
+
 ```{bash}
-#| eval: false
+```{bash}
+#| eval: true
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $6}' | sort | uniq -c
+```
+
+```{bash}
+#| eval: true
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $8}' | sort | uniq -c
+```
+
+```{bash}
+#| eval: true
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $10}' | sort | uniq -c
+```
+
+
+```{bash}
+#| eval: true
+zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $13}' | sort | uniq -c
 ```
 
 7. _To compress, or not to compress. That's the question._ Let's focus on the big data file `labevents.csv.gz`. Compare compressed gz file size to the uncompressed file size. Compare the run times of `zcat < ~/mimic/labevents.csv.gz | wc -l` versus `wc -l labevents.csv`. Discuss the trade off between storage and speed for big data files. (Hint: `gzip -dk < FILENAME.gz > ./FILENAME`. Remember to delete the large `labevents.csv` file after the exercise.)
+
+**Answer:**
+The compressed file size is 1.8 GB and the uncompressed file size is 13 GB. The run time for `zcat < ~/mimic/labevents.csv.gz | wc -l` is 19.220s and the run time for `wc -l labevents.csv` is 6.522s. The trade off between storage and speed for big data files is that compressed files take up less space but take longer to run and uncompressed files take up more space but run faster.
+
+```{bash}
+#| eval: false
+gzip -dk < ~/mimic/hosp/labevents.csv.gz > ./labevents.csv
+```
+
+```{bash}
+#| eval: true
+ls -lh ~/mimic/hosp/labevents.csv.gz
+```
+
+```{bash}
+#| eval: true
+ls -lh ./labevents.csv
+```
+
+
+
+```{bash}
+#| eval: true
+time zcat < ~/mimic/hosp/labevents.csv.gz | wc -l
+```
+```{bash}
+#| eval: true
+time wc -l  labevents.csv
+```
+```{bash}
+#| eval: false
+rm ./labevents.csv
+```
 
 ## Q4. Who's popular in Price and Prejudice
 
