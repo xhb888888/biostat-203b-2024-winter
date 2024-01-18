@@ -121,7 +121,6 @@ zcat < ~/mimic/hosp/patients.csv.gz | awk -F, '{print $1}' | sort | uniq | wc -l
 **Answer:** The possible values taken by each of the variable `admission_type`, `admission_location`, `insurance`, and `race` are listed below. The counts for each unique value of these variables are also listed below.
 
 ```{bash}
-```{bash}
 #| eval: true
 zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $6}' | sort | uniq -c
 ```
