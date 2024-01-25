@@ -24,7 +24,7 @@ knitr:
 Display machine information for reproducibility:
 
 ```{r}
-#| eval: false
+#| eval: true
 sessionInfo()
 ```
 
@@ -46,7 +46,7 @@ sessionInfo()
 
 5.  After this course, you can make this repository public and use it to demonstrate your skill sets on job market.
 
-**Answer:** Understand.
+**Answer:** Understand. 
 
 ## Q2. Data ethics training
 
@@ -253,62 +253,77 @@ cal
 ```
 
 ```{bash}
+#| eval: true
 cal 2024
 ```
 
 ```{bash}
+#| eval: true
 cal 9 1752
 ```
 
 ```{bash}
+#| eval: true
 date
 ```
 
 ```{bash}
+#| eval: true
 hostname
 ```
 
 ```{bash}
+#| eval: true
 arch
 ```
 
 ```{bash}
+#| eval: true
 uname -a
 ```
 
 ```{bash}
+#| eval: true
 uptime
 ```
 
 ```{bash}
+#| eval: true
 who am i
 ```
 
 ```{bash}
+#| eval: true
 who
 ```
 
 ```{bash}
+#| eval: true
 w
 ```
 
 ```{bash}
+#| eval: true
 id
 ```
 
 ```{bash}
+#| eval: true
 last | head
 ```
 
 ```{bash}
+#| eval: true
 echo {con,pre}{sent,fer}{s,ed}
 ```
 
 ```{bash}
+#| eval: true
 time sleep 5
 ```
 
 ```{bash}
+#| eval: true
 history | tail
 ```
 
