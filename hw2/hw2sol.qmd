@@ -63,6 +63,23 @@ There are quite a few utilities in R for reading plain text data files. Let us t
 
 Which function is fastest? Is there difference in the (default) parsed data types? How much memory does each resultant dataframe or tibble use? (Hint: `system.time` measures run times; `pryr::object_size` measures memory usage.) 
 
+**Answer:**
+'fread' is the fastest. The default parsed data types are different. The resultant dataframe uses 1.2GB memory, the resultant tibble uses 1.1GB memory, and the resultant data.table uses 1.2GB memory.
+
+```{r}
+system.time(df1 <- read.csv("~/mimic/hosp/admissions.csv.gz"))
+```
+
+```{r}
+system.time(df2 <- read_csv("~/mimic/hosp/admissions.csv.gz"))
+```
+
+```{r}
+system.time(df3 <- fread("~/mimic/hosp/admissions.csv.gz"))
+```
+
+
+
 ### Q1.2 User-supplied data types
 
 Re-ingest `admissions.csv.gz` by indicating appropriate column data types in `read_csv`. Does the run time change? How much memory does the result tibble use? (Hint: `col_types` argument in `read_csv`.)
