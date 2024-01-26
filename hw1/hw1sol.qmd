@@ -46,7 +46,7 @@ sessionInfo()
 
 5.  After this course, you can make this repository public and use it to demonstrate your skill sets on job market.
 
-**Answer:** Understand. 
+**Answer:** Understand.
 
 ## Q2. Data ethics training
 
@@ -231,7 +231,6 @@ head -n "$2" "$1" | tail -n "$3"
 ```
 
 Using `chmod` to make the file executable by the owner, and run
-
 
 ```{bash}
 #| eval: true
