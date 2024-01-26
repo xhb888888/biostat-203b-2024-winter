@@ -24,7 +24,7 @@ knitr:
 Display machine information for reproducibility:
 
 ```{r}
-#| eval: false
+#| eval: true
 sessionInfo()
 ```
 
@@ -91,6 +91,8 @@ ls -l ~/mimic/icu/
 
 4.  (Looping in Bash) What's the output of the following bash script?
 
+**Answer::** The output of the following bash script is the list of the files in the `~/mimic/hosp` folder.
+
 ```{bash}
 #| eval: true
 for datafile in ~/mimic/hosp/{a,l,pa}*.gz
@@ -110,6 +112,8 @@ done
 ```
 
 5.  Display the first few lines of `admissions.csv.gz`. How many rows are in this data file? How many unique patients (identified by `subject_id`) are in this data file? Do they match the number of patients listed in the `patients.csv.gz` file? (Hint: combine Linux commands `zcat <`, `head`/`tail`, `awk`, `sort`, `uniq`, `wc`, and so on.)
+
+**Answer:** The first few lines of `admissions.csv.gz` are displayed below. There are 431,232 rows in this data file. There are 180,734 unique patients in this data file. They do not match the number of patients listed in the `patients.csv.gz` file which contains 299,713 unique patients.
 
 ```{bash}
 #| eval: true
@@ -147,8 +151,10 @@ zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $13}' | sort | uniq -c
 
 **Answer:** The compressed file size is 1.8 GB and the uncompressed file size is 13 GB. The run time for `zcat < ~/mimic/labevents.csv.gz | wc -l` is 19.220s and the run time for `wc -l labevents.csv` is 6.522s. The trade off between storage and speed for big data files is that compressed files take up less space but take longer to run and uncompressed files take up more space but run faster.
 
+**Answer:** The compressed file size is 1.8 GB and the uncompressed file size is 13 GB. The run time for `zcat < ~/mimic/labevents.csv.gz | wc -l` is around 18s and the run time for `wc -l labevents.csv` is around 6s. The trade off between storage and speed for big data files is that compressed files take up less space but take longer to run and uncompressed files take up more space but run faster.
+
 ```{bash}
-#| eval: false
+#| eval: true
 gzip -dk < ~/mimic/hosp/labevents.csv.gz > ./labevents.csv
 ```
 
@@ -173,7 +179,7 @@ time wc -l  labevents.csv
 ```
 
 ```{bash}
-#| eval: false
+#| eval: true
 rm ./labevents.csv
 ```
 
@@ -230,6 +236,10 @@ Using `chmod` to make the file executable by the owner, and run
 
 ```{bash}
 #| eval: true
+chmod u+x middle.sh
+```
+
+```{bash}
 ./middle.sh pg42671.txt 20 5
 ```
 
@@ -242,6 +252,86 @@ Explain the output. Explain the meaning of `"$1"`, `"$2"`, and `"$3"` in this sh
 Try following commands in Bash and interpret the results: `cal`, `cal 2024`, `cal 9 1752` (anything unusual?), `date`, `hostname`, `arch`, `uname -a`, `uptime`, `who am i`, `who`, `w`, `id`, `last | head`, `echo {con,pre}{sent,fer}{s,ed}`, `time sleep 5`, `history | tail`.
 
 **Answer:** 'cal' displays a calendar for the current month. 'cal 2024' displays a calendar for the year 2024. 'cal 9 1752' displays a calendar for September 1752. The calendar for September 1752 is unusual because it is missing 11 days. 'date' displays the current date and time. 'hostname' displays the name of the computer. 'arch' displays the architecture of the computer. 'uname -a' displays the operating system information. 'uptime' displays the current time, how long the computer has been running, how many users are currently logged on, and the load average of the computer. 'who am i' displays the username of the current user. 'who' displays the usernames of the users currently logged on. 'w' displays the current time, how long the computer has been running, how many users are currently logged on, and the load average of the computer. 'id' displays the user and group IDs of the current user. 'last \| head' displays the last 10 users who logged on to the computer. 'echo {con,pre}{sent,fer}{s,ed}' displays the words 'consents', 'conferred', 'consented', 'confered', 'present', 'prefers', 'presented', 'preferred'. 'time sleep 5' displays the time it takes to execute the command 'sleep 5'. 'history \| tail' displays the last 10 commands executed in the shell.
+
+```{bash}
+#| eval: true
+cal
+```
+
+```{bash}
+#| eval: true
+cal 2024
+```
+
+```{bash}
+#| eval: true
+cal 9 1752
+```
+
+```{bash}
+#| eval: true
+date
+```
+
+```{bash}
+#| eval: true
+hostname
+```
+
+```{bash}
+#| eval: true
+arch
+```
+
+```{bash}
+#| eval: true
+uname -a
+```
+
+```{bash}
+#| eval: true
+uptime
+```
+
+```{bash}
+#| eval: true
+who am i
+```
+
+```{bash}
+#| eval: true
+who
+```
+
+```{bash}
+#| eval: true
+w
+```
+
+```{bash}
+#| eval: true
+id
+```
+
+```{bash}
+#| eval: true
+last | head
+```
+
+```{bash}
+#| eval: true
+echo {con,pre}{sent,fer}{s,ed}
+```
+
+```{bash}
+#| eval: true
+time sleep 5
+```
+
+```{bash}
+#| eval: true
+history | tail
+```
 
 ## Q6. Book
 
