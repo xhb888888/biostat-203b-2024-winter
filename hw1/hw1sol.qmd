@@ -149,10 +149,10 @@ zcat < ~/mimic/hosp/admissions.csv.gz | awk -F, '{print $13}' | sort | uniq -c
 
 7.  *To compress, or not to compress. That's the question.* Let's focus on the big data file `labevents.csv.gz`. Compare compressed gz file size to the uncompressed file size. Compare the run times of `zcat < ~/mimic/labevents.csv.gz | wc -l` versus `wc -l labevents.csv`. Discuss the trade off between storage and speed for big data files. (Hint: `gzip -dk < FILENAME.gz > ./FILENAME`. Remember to delete the large `labevents.csv` file after the exercise.)
 
-**Answer:** The compressed file size is 1.8 GB and the uncompressed file size is 13 GB. The run time for `zcat < ~/mimic/labevents.csv.gz | wc -l` is 19.220s and the run time for `wc -l labevents.csv` is 6.522s. The trade off between storage and speed for big data files is that compressed files take up less space but take longer to run and uncompressed files take up more space but run faster.
+**Answer:** The compressed file size is 1.8 GB and the uncompressed file size is 13 GB. The run time for `zcat < ~/mimic/labevents.csv.gz | wc -l` is around 18s and the run time for `wc -l labevents.csv` is around 6s. The trade off between storage and speed for big data files is that compressed files take up less space but take longer to run and uncompressed files take up more space but run faster.
 
 ```{bash}
-#| eval: false
+#| eval: true
 gzip -dk < ~/mimic/hosp/labevents.csv.gz > ./labevents.csv
 ```
 
@@ -177,7 +177,7 @@ time wc -l  labevents.csv
 ```
 
 ```{bash}
-#| eval: false
+#| eval: true
 rm ./labevents.csv
 ```
 
@@ -232,8 +232,13 @@ head -n "$2" "$1" | tail -n "$3"
 
 Using `chmod` to make the file executable by the owner, and run
 
+
 ```{bash}
 #| eval: true
+chmod u+x middle.sh
+```
+
+```{bash}
 ./middle.sh pg42671.txt 20 5
 ```
 
