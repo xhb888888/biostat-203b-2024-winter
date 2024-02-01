@@ -264,14 +264,35 @@ Write a few sentences to explain what is the Parquet format. Imagine you want to
 
 Ingest the Parquet file, convert it to a DuckDB table by [`arrow::to_duckdb`](https://arrow.apache.org/docs/r/reference/to_duckdb.html), select columns, and filter rows as in Q2.5. How long does the ingest+convert+select+filter process take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** It takes 0.129 seconds to ingest+convert+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows of the result tibble match those in Q2.3. Here are codes to generate these results.
+**Answer:** It takes 0.031 seconds to ingest+convert+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows of the result tibble match those in Q2.3. Here are codes to generate these results.
 
 ```{r}
-#| eval: false
-
-arrow::open_dataset('~/labevents.parquet') |> 
-  arrow::to_duckdb('~/labevents.db')
+df <- 
+  arrow::open_dataset('~/labevents.csv', format = "csv") |> 
+  arrow::to_duckdb(table_name = "labevents_table")
 ```
+
+
+```{r}
+system.time(arrow::open_dataset('~/labevents.csv', format = "csv") |> 
+  arrow::to_duckdb(table_name = "labevents_table") |> 
+  dplyr::select(subject_id, itemid, charttime, valuenum) |> 
+  dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221,
+                              51301, 50931)))
+```
+
+```{r}
+df |> 
+  collect() |>
+  count()
+```
+
+```{r}
+df |> 
+  collect() |>  # Convert to a regular R dataframe
+  dplyr::slice(1:10)
+```
+
 
 
 Write a few sentences to explain what is DuckDB. Imagine you want to explain it to a layman in an elevator.
