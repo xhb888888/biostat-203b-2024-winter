@@ -25,7 +25,6 @@ execute:
 
 Display machine information for reproducibility:
 
-
 ```{r}
 sessionInfo()
 ```
@@ -75,10 +74,10 @@ Which function is fastest? Is there difference in the (default) parsed data type
 ```{r}
 system.time(df1 <- read.csv("~/mimic/hosp/admissions.csv.gz"))
 ```
+
 ```{r}
 str(df1)
 ```
-
 
 ```{r}
 pryr::object_size(df1)
@@ -88,11 +87,9 @@ pryr::object_size(df1)
 system.time(df2 <- read_csv("~/mimic/hosp/admissions.csv.gz"))
 ```
 
-
 ```{r}
 str(df2)
 ```
-
 
 ```{r}
 pryr::object_size(df2)
@@ -101,6 +98,7 @@ pryr::object_size(df2)
 ```{r}
 system.time(df3 <- fread("~/mimic/hosp/admissions.csv.gz"))
 ```
+
 ```{r}
 str(df3)
 ```
@@ -119,6 +117,7 @@ Re-ingest `admissions.csv.gz` by indicating appropriate column data types in `re
 system.time(df2 <- read_csv("~/mimic/hosp/admissions.csv.gz",
                             col_types='icTTTccccccccTTi'))
 ```
+
 ```{r}
 pryr::object_size(df2)
 ```
@@ -206,16 +205,19 @@ Display the first 10 lines of the new file `labevents_filtered.csv.gz`. How many
 **Answer:** There are 24,855,909 lines in this new file. It takes 9.097 seconds to ingest `labevents_filtered.csv.gz` by `read_csv`.
 
 This code chunk is showing the first 10 lines of the new file.
+
 ```{bash}
 zcat < ./labevents_filtered.csv.gz | head -10
 ```
 
 This code chuck displayed the number of lines in the new file.
+
 ```{bash}
 zcat < ./labevents_filtered.csv.gz | wc -l
 ```
 
 This code chunk is showing the time it takes to ingest `labevents_filtered.csv.gz` by `read_csv`.
+
 ```{r}
 system.time(read_csv("./labevents_filtered.csv.gz"))
 ```
@@ -237,9 +239,10 @@ gzip -dk < ~/mimic/hosp/labevents.csv.gz > ./labevents.csv
 
 Then use [`arrow::open_dataset`](https://arrow.apache.org/docs/r/reference/open_dataset.html) to ingest `labevents.csv`, select columns, and filter `itemid` as in Q2.3. How long does the ingest+select+filter process take? Display the number of rows and the first 10 rows of the result tibble, and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** It takes 0.019 seconds in ingest+select+filter process. There are 24855909 rows. The first 10 rows matches with those in Q2.3. 
+**Answer:** It takes 0.019 seconds in ingest+select+filter process. There are 24855909 rows. The first 10 rows matches with those in Q2.3.
 
 This code chunk is showing the amount of time for the operation required in the question:
+
 ```{r}
 system.time(df <- arrow::open_dataset('./labevents.csv', format = "csv") |> 
               dplyr::select(subject_id, itemid, charttime, valuenum) |> 
@@ -286,10 +289,10 @@ arrow::write_dataset(arrow::open_dataset('./labevents.csv', format = "csv"),
 ```
 
 Here contains the size of the file:
+
 ```{bash}
 ls -l labevents.parquet
 ```
-
 
 ```{r}
 # Check ingest+select+filter time
@@ -400,6 +403,7 @@ Create a subset of data based on the itemid
 
 ```{r}
 df <- arrow::open_dataset('./chartevents.parquet') |> 
+  dplyr::select(subject_id, itemid, charttime, valuenum) |> 
   dplyr::filter(itemid %in% c(220045, 220181, 220179, 223761, 220210))
 ```
 
@@ -407,7 +411,7 @@ Convert data format to tipple and sort it for reproducibility
 
 ```{r}
 df <- as_tibble(df)
-df <- arrange(df, subject_id, charttime)
+df <- arrange(df, subject_id)
 ```
 
 Count number of rows:
