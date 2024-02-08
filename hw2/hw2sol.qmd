@@ -20,13 +20,11 @@ knitr:
     fig.height: 4
     message: FALSE
 execute:
-  eval: false    
+  eval: true    
 ---
 
 Display machine information for reproducibility:
 
-```{r}
-```
 
 ```{r}
 sessionInfo()
@@ -72,20 +70,42 @@ Which function is fastest? Is there difference in the (default) parsed data type
 
 **Answer:**
 
-'fread' is the fastest. The default parsed data types are same. All three functions expect to be passed in 'csv' file, which will make them most efficient. However, they can also read in other file format or compressed file with the cost of efficiency. The resultant dataframe by 'read.csv' uses 158.71 MB memory. The resultant tipple by 'read_csv' uses 55.31 MB memory. uses 1.2GB memory. The resultant dataframe by 'fread' uses 50.13 MB memory.
+'fread' is the fastest. The default parsed data types are not completely the same. Some variables have different data types while passing into different functions. For example, all the time related variables are passed in as character type using 'read.csv' but the other two functions read these time variables as type 'POSIct' which is a type represented the time. For some other variables like 'subject_id', 'hadm_id' and 'hospital_expire_flag', both 'read.csv' and 'fread' read them as integer but 'read_csv' read them as number. The resultant dataframe by 'read.csv' uses 158.71 MB memory. The resultant tipple by 'read_csv' uses 55.31 MB memory. The resultant dataframe by 'fread' uses 50.13 MB memory.
 
 ```{r}
 system.time(df1 <- read.csv("~/mimic/hosp/admissions.csv.gz"))
+```
+```{r}
+str(df1)
+```
+
+
+```{r}
 pryr::object_size(df1)
 ```
 
 ```{r}
 system.time(df2 <- read_csv("~/mimic/hosp/admissions.csv.gz"))
+```
+
+
+```{r}
+str(df2)
+```
+
+
+```{r}
 pryr::object_size(df2)
 ```
 
 ```{r}
 system.time(df3 <- fread("~/mimic/hosp/admissions.csv.gz"))
+```
+```{r}
+str(df3)
+```
+
+```{r}
 pryr::object_size(df3)
 ```
 
@@ -93,11 +113,13 @@ pryr::object_size(df3)
 
 Re-ingest `admissions.csv.gz` by indicating appropriate column data types in `read_csv`. Does the run time change? How much memory does the result tibble use? (Hint: `col_types` argument in `read_csv`.)
 
-**Answer:** The runtime changes a little bit. It takes 1.62 second compared to 1.58 seconds with calling without specifying column data types. The resultant tibble uses 79.46 MB memory.
+**Answer:** The runtime is faster. It takes 0.903 second compared to 1.016 seconds which is calling without specifying column data types. The resultant tibble uses 79.46 MB memory.
 
 ```{r}
 system.time(df2 <- read_csv("~/mimic/hosp/admissions.csv.gz",
                             col_types='icTTTccccccccTTi'))
+```
+```{r}
 pryr::object_size(df2)
 ```
 
@@ -132,6 +154,7 @@ zcat < ~/mimic/hosp/labevents.csv.gz | head -10
 Try to ingest `labevents.csv.gz` using `read_csv`. What happens? If it takes more than 5 minutes on your computer, then abort the program and report your findings.
 
 ```{r}
+#| eval: false
 df <- read_csv("~/mimic/hosp/labevents.csv.gz")
 ```
 
@@ -142,10 +165,11 @@ df <- read_csv("~/mimic/hosp/labevents.csv.gz")
 Try to ingest only columns `subject_id`, `itemid`, `charttime`, and `valuenum` in `labevents.csv.gz` using `read_csv`. Does this solve the ingestion issue? (Hint: `col_select` argument in `read_csv`.)
 
 ```{r}
-df <- read_csv("~/mimic/hosp/labevents.csv.gz",col_select=c('subject_id', 
-                                                            'itemid', 
-                                                            'charttime', 
-                                                            'valuenum'))
+#| eval: false
+df <- read_csv("~/mimic/hosp/labevents.csv.gz", col_select=c('subject_id', 
+                                                             'itemid', 
+                                                             'charttime', 
+                                                             'valuenum'))
 ```
 
 **Answer:** This did not solve the issue. I still got the error "Error: vector memory exhausted (limit reached?)" which indicate that the memory is not enough to read the file.
@@ -164,8 +188,9 @@ In later exercises, we will only be interested in the following lab items: creat
 
 ```{bash}
 #| eval: false
-zcat < ~/mimic/hosp/labevents.csv.gz | head -5
 
+#Get an idea of the information of the file which will be reading in next chunk
+zcat < ~/mimic/hosp/labevents.csv.gz | head -5
 ```
 
 ```{bash}
@@ -178,14 +203,19 @@ $5==50931) print $2,$5,$7,$10}' | gzip > ./labevents_filtered.csv.gz
 
 Display the first 10 lines of the new file `labevents_filtered.csv.gz`. How many lines are in this new file? How long does it take `read_csv` to ingest `labevents_filtered.csv.gz`?
 
-**Answer:** There are 24,855,909 lines in this new file. It takes 21.561 seconds to ingest `labevents_filtered.csv.gz` by `read_csv`.
+**Answer:** There are 24,855,909 lines in this new file. It takes 9.097 seconds to ingest `labevents_filtered.csv.gz` by `read_csv`.
 
+This code chunk is showing the first 10 lines of the new file.
 ```{bash}
 zcat < ./labevents_filtered.csv.gz | head -10
+```
 
+This code chuck displayed the number of lines in the new file.
+```{bash}
 zcat < ./labevents_filtered.csv.gz | wc -l
 ```
 
+This code chunk is showing the time it takes to ingest `labevents_filtered.csv.gz` by `read_csv`.
 ```{r}
 system.time(read_csv("./labevents_filtered.csv.gz"))
 ```
@@ -207,8 +237,9 @@ gzip -dk < ~/mimic/hosp/labevents.csv.gz > ./labevents.csv
 
 Then use [`arrow::open_dataset`](https://arrow.apache.org/docs/r/reference/open_dataset.html) to ingest `labevents.csv`, select columns, and filter `itemid` as in Q2.3. How long does the ingest+select+filter process take? Display the number of rows and the first 10 rows of the result tibble, and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** It takes 0.017 seconds in ingest+select+filter process. There are 24855909 rows. The first 10 rows matches with those in Q2.3. 
+**Answer:** It takes 0.019 seconds in ingest+select+filter process. There are 24855909 rows. The first 10 rows matches with those in Q2.3. 
 
+This code chunk is showing the amount of time for the operation required in the question:
 ```{r}
 system.time(df <- arrow::open_dataset('./labevents.csv', format = "csv") |> 
               dplyr::select(subject_id, itemid, charttime, valuenum) |> 
@@ -229,7 +260,7 @@ count(df)
 Here is first 10 rows of tipple:
 
 ```{r}
-head(df,10)
+head(df, 10)
 ```
 
 Write a few sentences to explain what is Apache Arrow. Imagine you want to explain it to a layman in an elevator.
@@ -246,7 +277,7 @@ Write a few sentences to explain what is Apache Arrow. Imagine you want to expla
 
 Re-write the csv file `labevents.csv` in the binary Parquet format (Hint: [`arrow::write_dataset`](https://arrow.apache.org/docs/r/reference/write_dataset.html).) How large is the Parquet file(s)? How long does the ingest+select+filter process of the Parquet file(s) take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** The Parquet file is 96 Bytes. It takes 0.146 seconds to ingest+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows of the result tibble match those in Q2.3. Here are codes to generate these results.
+**Answer:** The Parquet file is about 2.07 GB. It takes 0.164 seconds to ingest+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows of the result tibble match those in Q2.3. Here are codes to generate these results.
 
 ```{r}
 #| eval: false
@@ -254,15 +285,11 @@ arrow::write_dataset(arrow::open_dataset('./labevents.csv', format = "csv"),
                      './labevents.parquet')
 ```
 
-Here is the size of the file (Unit: Bytes):
-
-```{r}
-# Check file size
-file_info <- fs::file_info('./labevents.parquet')
-file_size <- file_info$size
-
-print(file_size)
+Here contains the size of the file:
+```{bash}
+ls -l labevents.parquet
 ```
+
 
 ```{r}
 # Check ingest+select+filter time
@@ -303,7 +330,7 @@ Write a few sentences to explain what is the Parquet format. Imagine you want to
 
 Ingest the Parquet file, convert it to a DuckDB table by [`arrow::to_duckdb`](https://arrow.apache.org/docs/r/reference/to_duckdb.html), select columns, and filter rows as in Q2.5. How long does the ingest+convert+select+filter process take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** It takes 0.031 seconds to ingest+convert+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows after sorting the result tibble will match those in Q2.3. However, it might not match exactly if I do not sort here. Parallel processing causes uncertainty in output which sometimes change the order of rows. Here are codes to generate these results.
+**Answer:** It takes 0.202 seconds to ingest+convert+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows after sorting the result tibble will match those in Q2.3. However, it might not match exactly if I do not sort here. Parallel processing causes uncertainty in output which sometimes change the order of rows. Here are codes to generate these results.
 
 ```{r}
 system.time(df <- arrow::open_dataset('./labevents.parquet') |> 
@@ -327,7 +354,7 @@ count(df)
 Here is first 10 rows of tipple:
 
 ```{r}
-head(df,10)
+head(df, 10)
 ```
 
 Write a few sentences to explain what is DuckDB. Imagine you want to explain it to a layman in an elevator.
@@ -392,5 +419,5 @@ count(df)
 Display the first 10 rows:
 
 ```{r}
-head(df,10)
+head(df, 10)
 ```
