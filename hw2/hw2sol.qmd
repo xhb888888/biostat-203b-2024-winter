@@ -399,7 +399,7 @@ arrow::write_dataset(arrow::open_dataset('./chartevents.csv', format = "csv"),
                      './chartevents.parquet')
 ```
 
-Create a subset of data based on the itemid
+Create a subset of data based on the itemid and filter out variables that are not needed
 
 ```{r}
 df <- arrow::open_dataset('./chartevents.parquet') |> 
