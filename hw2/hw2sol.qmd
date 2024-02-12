@@ -111,11 +111,11 @@ pryr::object_size(df3)
 
 Re-ingest `admissions.csv.gz` by indicating appropriate column data types in `read_csv`. Does the run time change? How much memory does the result tibble use? (Hint: `col_types` argument in `read_csv`.)
 
-**Answer:** The runtime is faster. It takes 0.903 second compared to 1.016 seconds which is calling without specifying column data types. The resultant tibble uses 79.46 MB memory.
+**Answer:** The runtime is faster. It takes 0.754 second compared to 1.016 seconds which is calling without specifying column data types. The resultant tibble uses 67.39 MB memory.
 
 ```{r}
 system.time(df2 <- read_csv("~/mimic/hosp/admissions.csv.gz",
-                            col_types='icTTTccccccccTTi'))
+                            col_types='icTTTfcffffffTTi'))
 ```
 
 ```{r}
@@ -165,10 +165,10 @@ Try to ingest only columns `subject_id`, `itemid`, `charttime`, and `valuenum` i
 
 ```{r}
 #| eval: false
-df <- read_csv("~/mimic/hosp/labevents.csv.gz", col_select=c('subject_id', 
-                                                             'itemid', 
-                                                             'charttime', 
-                                                             'valuenum'))
+df <- read_csv("~/mimic/hosp/labevents.csv.gz", col_select = c('subject_id', 
+                                                               'itemid', 
+                                                               'charttime', 
+                                                               'valuenum'))
 ```
 
 **Answer:** This did not solve the issue. I still got the error "Error: vector memory exhausted (limit reached?)" which indicate that the memory is not enough to read the file.
@@ -239,7 +239,7 @@ gzip -dk < ~/mimic/hosp/labevents.csv.gz > ./labevents.csv
 
 Then use [`arrow::open_dataset`](https://arrow.apache.org/docs/r/reference/open_dataset.html) to ingest `labevents.csv`, select columns, and filter `itemid` as in Q2.3. How long does the ingest+select+filter process take? Display the number of rows and the first 10 rows of the result tibble, and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** It takes 0.019 seconds in ingest+select+filter process. There are 24855909 rows. The first 10 rows matches with those in Q2.3.
+**Answer:** It takes 0.019 seconds in ingest+select+filter process. There are 24855909 rows. The first 10 rows matches with those in Q2.3 except time variables because the time zone does not match.
 
 This code chunk is showing the amount of time for the operation required in the question:
 
@@ -280,7 +280,7 @@ Write a few sentences to explain what is Apache Arrow. Imagine you want to expla
 
 Re-write the csv file `labevents.csv` in the binary Parquet format (Hint: [`arrow::write_dataset`](https://arrow.apache.org/docs/r/reference/write_dataset.html).) How large is the Parquet file(s)? How long does the ingest+select+filter process of the Parquet file(s) take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** The Parquet file is about 2.07 GB. It takes 0.164 seconds to ingest+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows of the result tibble match those in Q2.3. Here are codes to generate these results.
+**Answer:** The Parquet file is about 2.07 GB. It takes 0.164 seconds to ingest+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows of the result tibble match those in Q2.3 except time variables because the time zone does not match.. Here are codes to generate these results.
 
 ```{r}
 #| eval: false
@@ -316,7 +316,7 @@ count(df)
 Here is first 10 rows of tipple:
 
 ```{r}
-head(df,10)
+head(df, 10)
 ```
 
 Write a few sentences to explain what is the Parquet format. Imagine you want to explain it to a layman in an elevator.
@@ -333,7 +333,7 @@ Write a few sentences to explain what is the Parquet format. Imagine you want to
 
 Ingest the Parquet file, convert it to a DuckDB table by [`arrow::to_duckdb`](https://arrow.apache.org/docs/r/reference/to_duckdb.html), select columns, and filter rows as in Q2.5. How long does the ingest+convert+select+filter process take? Display the number of rows and the first 10 rows of the result tibble and make sure they match those in Q2.3. (Hint: use `dplyr` verbs for selecting columns and filtering rows.)
 
-**Answer:** It takes 0.202 seconds to ingest+convert+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows after sorting the result tibble will match those in Q2.3. However, it might not match exactly if I do not sort here. Parallel processing causes uncertainty in output which sometimes change the order of rows. Here are codes to generate these results.
+**Answer:** It takes 0.202 seconds to ingest+convert+select+filter the Parquet file. The number of rows is 24855909. The first 10 rows after sorting the result tibble will match those in Q2.3 except time variables because the time zone does not match.. However, it might not match exactly if I do not sort here. Parallel processing causes uncertainty in output which sometimes change the order of rows. Here are codes to generate these results.
 
 ```{r}
 system.time(df <- arrow::open_dataset('./labevents.parquet') |> 
