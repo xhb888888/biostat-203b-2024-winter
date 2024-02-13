@@ -362,7 +362,7 @@ head(df, 10)
 
 Write a few sentences to explain what is DuckDB. Imagine you want to explain it to a layman in an elevator.
 
-**Answer:** DuckDB is a database management system that is designed to be fast and efficient. It's like a super organized library for data, where you can quickly find and retrieve the information you need.
+**Answer:** DuckDB is a database management system that is designed to be fast and efficient. It's like a super organized library for data, where you can quickly find and retrieve the information you need. It is an analytical database that is designed to be fast and efficient for analytical queries. Data is organizaed by columns so processor can quickly analyze it. The traditional database are transactional database that data is organized by rows because they are designed to delete and add new data into the database. 
 
 ## Q3. Ingest and filter `chartevents.csv.gz`
 
