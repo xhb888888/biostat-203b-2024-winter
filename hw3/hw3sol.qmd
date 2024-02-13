@@ -1,7 +1,7 @@
 ---
 title: "Biostat 203B Homework 3"
 subtitle: "Due Feb 23 @ 11:59PM"
-author: "Your Name and UID"
+author: "Hanbei Xiong 605257780"
 format:
   html:
     theme: cosmo
@@ -48,6 +48,41 @@ A patient's ADT history records the time of admission, discharge, and transfer i
 Do a similar visualization for the patient with `subject_id` 10013310 using ggplot.
 
 Hint: We need to pull information from data files `patients.csv.gz`, `admissions.csv.gz`, `transfers.csv.gz`, `labevents.csv.gz`, `procedures_icd.csv.gz`, `diagnoses_icd.csv.gz`, `d_icd_procedures.csv.gz`, and `d_icd_diagnoses.csv.gz`. For the big file `labevents.csv.gz`, use the Parquet format you generated in Homework 2. For reproducibility, make the Parquet folder `labevents_pq` available at the current working directory `hw3`, for example, by a symbolic link. Make your code reproducible.
+
+
+```{r}
+patients <- read_csv("~/mimic/hosp/patients.csv.gz")
+admission <- read_csv("~/mimic/hosp/admissions.csv.gz")
+transfers <- read_csv("~/mimic/hosp/transfers.csv.gz")
+labevents <- arrow::open_dataset("./labevents_pq")
+labevents <- as_tibble(labevents)
+procedures_icd <- read_csv("~/mimic/hosp/procedures_icd.csv.gz")
+diagnoses_icd <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz")
+d_icd_procedures <- read_csv("~/mimic/hosp/d_icd_procedures.csv.gz")
+d_icd_diagnoses <- read_csv("~/mimic/hosp/d_icd_diagnoses.csv.gz")
+```
+
+```{r}
+labevents %>% head()
+```
+
+```{r}
+patients %>% 
+  filter(subject_id == 10001217) %>%
+  left_join(admission, by = "subject_id") %>%
+  left_join(transfers, by = "subject_id") %>%
+  left_join(procedures_icd, by = "subject_id") %>% 
+  left_join(diagnoses_icd, by = "subject_id") %>% 
+  head()
+```
+
+```{r}
+d_icd_diagnoses |> 
+  filter(icd_code == 1217)
+```
+
+
+
 
 ### Q1.2 ICU stays
 
