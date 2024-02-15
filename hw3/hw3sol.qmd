@@ -63,23 +63,46 @@ d_icd_diagnoses <- read_csv("~/mimic/hosp/d_icd_diagnoses.csv.gz")
 ```
 
 ```{r}
-labevents %>% head()
+transfers
 ```
 
 ```{r}
-patients %>% 
-  filter(subject_id == 10001217) %>%
-  left_join(admission, by = "subject_id") %>%
-  left_join(transfers, by = "subject_id") %>%
-  left_join(procedures_icd, by = "subject_id") %>% 
-  left_join(diagnoses_icd, by = "subject_id") %>% 
-  head()
+# convert date type to posixct time
+procedure_info = procedures_icd |> 
+  filter(subject_id == 10013310) |>
+  left_join(d_icd_procedures, by = "icd_code") |>
+  mutate(chartdate = as.POSIXct(chartdate, format = "%Y-%m-%d"))
+```
+```{r}
+procedure_info
 ```
 
+
 ```{r}
-d_icd_diagnoses |> 
-  filter(icd_code == 1217)
+# move labels to the bottom of entire plot
+ggplot() +
+  geom_segment(data = transfers |> filter(subject_id == 10013310), 
+               aes(x = intime, xend = outtime, y = 1, yend = 1, 
+                   color = careunit),
+               linewidth = 1.5) +
+  geom_point(data = labevents |> filter(subject_id == 10013310), 
+             aes(x = charttime, y = 2), shape = 3, size = 1) +
+  geom_point(data = procedure_info, 
+             aes(x = chartdate, y = 3, shape = long_title), size = 3) +
+  theme(legend.position = "bottom") 
+
+  
+  
+  
 ```
+```{r}
+procedures_icd
+```
+
+
+
+
+
 
 
 
