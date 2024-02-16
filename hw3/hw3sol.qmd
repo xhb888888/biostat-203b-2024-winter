@@ -63,45 +63,106 @@ d_icd_diagnoses <- read_csv("~/mimic/hosp/d_icd_diagnoses.csv.gz")
 ```
 
 ```{r}
-transfers
+procedures_icd |> filter(subject_id == id)
+```
+
+```{r}
+# change this id to reproduce result for any patient 
+id = 10013310
 ```
 
 ```{r}
 # convert date type to posixct time
 procedure_info = procedures_icd |> 
-  filter(subject_id == 10013310) |>
+  filter(subject_id == id) |>
   left_join(d_icd_procedures, by = "icd_code") |>
-  mutate(chartdate = as.POSIXct(chartdate, format = "%Y-%m-%d"))
+  mutate(chartdate = as.POSIXct(chartdate, format = "%Y-%m-%d")) |>
+  mutate(long_title = str_sub(long_title, 1, 30))
+
+diagnoses_info = diagnoses_icd |> 
+  filter(subject_id == id) |> 
+  left_join(d_icd_diagnoses, by = "icd_code") |> 
+  count(long_title, sort = TRUE) |> 
+  head()
 ```
+
+
+
+
 ```{r}
-procedure_info
+patients_filtered <- patients |> filter(subject_id == id)
+admission_filtered <- admission |> 
+  filter(subject_id == id) |> 
+  distinct(subject_id, .keep_all = TRUE)
+
+# create a new variable to indicate whether the care unit is an ICU/CCU
+# If careunit variable contains ICU/CCU in its string, it is in ICU/CCU
+transfer_icu <- transfers  |> 
+  filter(subject_id == id) |> 
+  mutate(icu_status = ifelse(str_detect(careunit, "ICU|CCU"), 
+                      "ICU/CCU", "non-ICU/CCU"))
+
 ```
 
 
 ```{r}
-# move labels to the bottom of entire plot
+
+id_char = toString(patients_filtered['subject_id'])
+gender_char = toString(patients_filtered['gender'])
+age_char = toString(patients_filtered['anchor_age'])
+
+race_char = toString(admission_filtered['race'])
+
+diagnoses_info_1 = diagnoses_info['long_title'] |> slice(1)
+diagnoses_info_2 = diagnoses_info['long_title'] |> slice(2)
+diagnoses_info_3 = diagnoses_info['long_title'] |> slice(3)
+
+title = paste0("Patient ", id_char, ", ", gender_char, ", ", age_char, " years old, ", race_char)
+subtitle = paste0(diagnoses_info_1, "\n", diagnoses_info_2, "\n", diagnoses_info_3)
+```
+
+
+```{r}
+transfer_icu
+```
+
+
+
+```{r}
+# linewidth = ifelse(icu_status == 'ICU/CCU', 1, 3)) i want to achieve this
+# but i am not able to do it
 ggplot() +
-  geom_segment(data = transfers |> filter(subject_id == 10013310), 
+  geom_segment(data = transfer_icu, 
                aes(x = intime, xend = outtime, y = 1, yend = 1, 
                    color = careunit),
-               linewidth = 1.5) +
-  geom_point(data = labevents |> filter(subject_id == 10013310), 
+               linewidth = ifelse(transfer_icu$icu_status == 'ICU/CCU', 4, 1)) +
+  geom_point(data = labevents |> filter(subject_id == id), 
              aes(x = charttime, y = 2), shape = 3, size = 1) +
   geom_point(data = procedure_info, 
              aes(x = chartdate, y = 3, shape = long_title), size = 3) +
-  theme(legend.position = "bottom") 
+  scale_color_discrete(name = "Care Unit") +
+  scale_shape_manual(values=c(1:8), name = "Procedure") +
+  xlab('Calender Time') +
+  ylab('') +
+  theme(
+    legend.text = element_text(size = 6),
+    legend.position = "bottom",
+    legend.box = "vertical",
+    legend.title.align = 0,
+    legend.direction = 'horizontal') +
+  scale_y_continuous(breaks = 1:3, labels = c("ADT", "Lab", "Procedure")) +
+  ggtitle(label = title,
+              subtitle = subtitle)
 
-  
-  
   
 ```
 ```{r}
-procedures_icd
+ggplot() +
+  geom_segment(data = transfer_icu |> filter(subject_id == id), 
+               aes(x = intime, xend = outtime, y = 1, yend = 1, 
+                   color = careunit),
+               linewidth = ifelse(transfer_icu$icu_status == 'ICU/CCU', 10, 3))
 ```
-
-
-
-
 
 
 
