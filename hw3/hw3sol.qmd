@@ -165,8 +165,7 @@ id = 10013310
 
 ```{r}
 
-d_items <- read_csv("~/mimic/icu/d_items.csv.gz") |>
-  filter(str_detect(category, "Vital Signs"))
+d_items <- read_csv("~/mimic/icu/d_items.csv.gz")
 
 chartevents <- arrow::open_dataset("./chartevents.parquet") |> 
   filter(subject_id == id)
@@ -182,14 +181,11 @@ icustays <- read_csv("~/mimic/icu/icustays.csv.gz") |>
 ```{r}
 
 d_items <- d_items |> 
-  filter(str_detect(label, 
-                    "Heart Rate|respiratory|Non Invasive Blood Pressure systolic|Non Invasive Blood Pressure diastolic|Temperature Fahrenheit")) |>
-  select(itemid, label)
+  filter(itemid %in% c(220045, 220179, 220180, 223761, 220210)) |>
+  select(itemid, abbreviation)
 ```
 
-```{r}
-d_items
-```
+
 
 ```{r}
 chartevents <- chartevents |> 
@@ -203,9 +199,9 @@ chartevents
 
 ```{r}
 #i want to adjust the scale of y axis to make the plot more readable
-ggplot(chartevents, aes(x = charttime, y = value, color = label)) +
-  geom_line() +
-  facet_grid(label ~stay_id, scales = "free") +
+ggplot(chartevents, aes(x = charttime, y = value, color = abbreviation)) +
+  geom_point() +
+  facet_grid(abbreviation ~stay_id, scales = "free") +
   theme(legend.position = "none") +
   ggtitle(label = paste0("Patient ", id, " ICU stays - Vitals"))
 
@@ -396,13 +392,9 @@ We are interested in the lab measurements of creatinine (50912), potassium (5097
 
 ![](labevents_tble.png)
 
-```{r}
-icustays_tble
-```
 
 ```{r}
-# I want to calculate the differenece of minutes between storetime in 
-# labevent_tble and intime in icustays_tble based on the same subject_id.
+# The store time is based on the intime of the icustays_tble. For each icu stay i want the record of the last store time before the intime of each icu stay.
 labevents_tble <- arrow::open_dataset("./labevents.parquet") |>
   dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 
                        51221, 51301, 50931)) |>
@@ -417,21 +409,69 @@ labevents_tble <- arrow::open_dataset("./labevents.parquet") |>
     itemid == 51301 ~ "white_blood_cell_count",
     itemid == 50931 ~ "glucose"
   )) |>
-  select(subject_id, itemid, value, valuenum, storetime)
-  
-  
-
+  dplyr::select(subject_id, itemid, valuenum, charttime) |>
+  collect()
 ```
 
+```{r}
+# check for each chartime if there is same itemid
+arrow::open_dataset("./labevents.parquet") |>
+  dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 
+                       51221, 51301, 50931)) |>
+  dplyr::filter(subject_id == 10171405) |>
+  arrange(charttime, itemid) |>
+  collect()
+
+  #count appearance if there is same itemid appear twice
+  
+```
+
+
+```{r}
+labevents_tble_temp <- labevents_tble |> 
+  dplyr::group_by(subject_id, charttime, itemid) |>
+  pivot_wider(names_from = itemid, 
+              values_fn = list(valuenum = mean), 
+              values_from = valuenum, id_cols = c(subject_id, charttime))
+```
+
+
+```{r}
+labevents_tble_temp <- labevents_tble_temp |>
+  arrange(subject_id, charttime)
+```
+
+
+```{r}
+icustays_tble_temp <- icustays_tble |>
+  select(subject_id, stay_id, intime, outtime)
+```
+
+```{r}
+combined_data <- icustays_tble_temp |>
+  left_join(labevents_tble_temp, by = "subject_id")
+```
+
+```{r}
+#remove intime outtime charttime
+labevents_tble <- combined_data |>
+  arrange(subject_id, intime, charttime) |>
+  group_by(subject_id, stay_id) |>
+  filter(charttime <= intime) |>
+  group_by(subject_id, stay_id) |>
+  slice_max(charttime) |>
+  ungroup()
+```
 ```{r}
 labevents_tble <- labevents_tble |>
-  pivot_wider(names_from = itemid, values_from = value)
+  select(-c(intime, outtime, charttime)) |>
+  arrange(subject_id, stay_id)
 ```
 
 ```{r}
-labevents_tble |>
-    pivot_wider(names_from = itemid, values_from = value)
+labevents_tble
 ```
+
 
 Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `labevents_pq` folder available at the current working directory `hw3`, for example, by a symbolic link.
 
