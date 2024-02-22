@@ -55,13 +55,15 @@ Hint: We need to pull information from data files `patients.csv.gz`, `admissions
 patients <- read_csv("~/mimic/hosp/patients.csv.gz")
 admission <- read_csv("~/mimic/hosp/admissions.csv.gz")
 transfers <- read_csv("~/mimic/hosp/transfers.csv.gz")
-labevents <- arrow::open_dataset("./labevents.parquet")
+labevents <- arrow::open_dataset("./labevents_pq")
 labevents <- as_tibble(labevents)
 procedures_icd <- read_csv("~/mimic/hosp/procedures_icd.csv.gz")
 diagnoses_icd <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz")
 d_icd_procedures <- read_csv("~/mimic/hosp/d_icd_procedures.csv.gz")
 d_icd_diagnoses <- read_csv("~/mimic/hosp/d_icd_diagnoses.csv.gz")
 ```
+
+
 
 ```{r}
 # change this id to reproduce result for any patient 
@@ -111,6 +113,8 @@ diagnoses_info_3 = diagnoses_info['long_title'] |> slice(3)
 title = paste0("Patient ", id_char, ", ", gender_char, ", ", age_char, " years old, ", race_char)
 subtitle = paste0(diagnoses_info_1, "\n", diagnoses_info_2, "\n", diagnoses_info_3)
 ```
+
+
 
 ```{r}
 ggplot() +
@@ -193,14 +197,12 @@ chartevents <- chartevents |>
   left_join(d_items, by = "itemid")
 ```
 
-```{r}
-chartevents
-```
 
 ```{r}
 #i want to adjust the scale of y axis to make the plot more readable
-ggplot(chartevents, aes(x = charttime, y = value, color = abbreviation)) +
+ggplot(chartevents, aes(x = charttime, y = valuenum, color = abbreviation)) +
   geom_point() +
+  geom_line() +
   facet_grid(abbreviation ~stay_id, scales = "free") +
   theme(legend.position = "none") +
   ggtitle(label = paste0("Patient ", id, " ICU stays - Vitals"))
@@ -392,88 +394,42 @@ We are interested in the lab measurements of creatinine (50912), potassium (5097
 
 ![](labevents_tble.png)
 
+Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `labevents_pq` folder available at the current working directory `hw3`, for example, by a symbolic link.
 
 ```{r}
-# The store time is based on the intime of the icustays_tble. For each icu stay i want the record of the last store time before the intime of each icu stay.
-labevents_tble <- arrow::open_dataset("./labevents.parquet") |>
-  dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 
-                       51221, 51301, 50931)) |>
+dlabitems_tble <- read_csv("~/mimic/hosp/d_labitems.csv.gz") |>
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931))
+```
+
+
+```{r}
+icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz")
+
+labevents_tble_orig <- arrow::open_dataset("./labevents_pq") |>
+  dplyr::select(subject_id, itemid, valuenum, storetime) |>
+  dplyr::filter(itemid %in% dlabitems_tble$itemid) |>
   dplyr::filter(subject_id %in% icustays_tble$subject_id) |>
-  dplyr::mutate(itemid = dplyr::case_when(
-    itemid == 50912 ~ "creatinine",
-    itemid == 50971 ~ "potassium",
-    itemid == 50983 ~ "sodium",
-    itemid == 50902 ~ "chloride",
-    itemid == 50882 ~ "bicarbonate",
-    itemid == 51221 ~ "hematocrit",
-    itemid == 51301 ~ "white_blood_cell_count",
-    itemid == 50931 ~ "glucose"
-  )) |>
-  dplyr::select(subject_id, itemid, valuenum, charttime) |>
   collect()
 ```
 
 ```{r}
-# check for each chartime if there is same itemid
-arrow::open_dataset("./labevents.parquet") |>
-  dplyr::filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 
-                       51221, 51301, 50931)) |>
-  dplyr::filter(subject_id == 10171405) |>
-  arrange(charttime, itemid) |>
-  collect()
-
-  #count appearance if there is same itemid appear twice
-  
+labevents_tble <- labevents_tble_orig |>
+  left_join(
+    select(icustays_tble, subject_id, stay_id, intime),
+    by = "subject_id"
+    ) |>
+  filter(storetime < intime) |>
+  group_by(subject_id, stay_id, itemid) |>
+  arrange(storetime, by_group = TRUE) |>
+  slice_tail(n = 1) |>
+  select(-storetime, -intime) |>
+  pivot_wider(names_from = itemid, values_from = valuenum)
 ```
-
-
-```{r}
-labevents_tble_temp <- labevents_tble |> 
-  dplyr::group_by(subject_id, charttime, itemid) |>
-  pivot_wider(names_from = itemid, 
-              values_fn = list(valuenum = mean), 
-              values_from = valuenum, id_cols = c(subject_id, charttime))
-```
-
-
-```{r}
-labevents_tble_temp <- labevents_tble_temp |>
-  arrange(subject_id, charttime)
-```
-
-
-```{r}
-icustays_tble_temp <- icustays_tble |>
-  select(subject_id, stay_id, intime, outtime)
-```
-
-```{r}
-combined_data <- icustays_tble_temp |>
-  left_join(labevents_tble_temp, by = "subject_id")
-```
-
-```{r}
-#remove intime outtime charttime
-labevents_tble <- combined_data |>
-  arrange(subject_id, intime, charttime) |>
-  group_by(subject_id, stay_id) |>
-  filter(charttime <= intime) |>
-  group_by(subject_id, stay_id) |>
-  slice_max(charttime) |>
-  ungroup()
-```
-```{r}
-labevents_tble <- labevents_tble |>
-  select(-c(intime, outtime, charttime)) |>
-  arrange(subject_id, stay_id)
-```
-
 ```{r}
 labevents_tble
 ```
 
 
-Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `labevents_pq` folder available at the current working directory `hw3`, for example, by a symbolic link.
 
 
 ## Q6. Vitals from charted events
