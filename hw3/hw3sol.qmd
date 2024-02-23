@@ -29,6 +29,7 @@ library(memuse)
 library(pryr)
 library(R.utils)
 library(tidyverse)
+library(gtsummary)
 ```
 
 Display your machine memory.
@@ -52,91 +53,122 @@ A patient's ADT history records the time of admission, discharge, and transfer i
 Hint: We need to pull information from data files `patients.csv.gz`, `admissions.csv.gz`, `transfers.csv.gz`, `labevents.csv.gz`, `procedures_icd.csv.gz`, `diagnoses_icd.csv.gz`, `d_icd_procedures.csv.gz`, and `d_icd_diagnoses.csv.gz`. For the big file `labevents.csv.gz`, use the Parquet format you generated in Homework 2. For reproducibility, make the Parquet folder `labevents_pq` available at the current working directory `hw3`, for example, by a symbolic link. Make your code reproducible.
 
 ```{r}
+# loading data
 patients <- read_csv("~/mimic/hosp/patients.csv.gz")
 admission <- read_csv("~/mimic/hosp/admissions.csv.gz")
 transfers <- read_csv("~/mimic/hosp/transfers.csv.gz")
-labevents <- arrow::open_dataset("./labevents_pq")
-labevents <- as_tibble(labevents)
 procedures_icd <- read_csv("~/mimic/hosp/procedures_icd.csv.gz")
 diagnoses_icd <- read_csv("~/mimic/hosp/diagnoses_icd.csv.gz")
 d_icd_procedures <- read_csv("~/mimic/hosp/d_icd_procedures.csv.gz")
 d_icd_diagnoses <- read_csv("~/mimic/hosp/d_icd_diagnoses.csv.gz")
+labevents <- arrow::open_dataset("./labevents_pq") |>
+  collect()
 ```
 
 ```{r}
-# change this id to reproduce result for any patient 
+# change subject_id to reproduce result for any patient 
 id = 10013310
 ```
 
 ```{r}
 
 procedure_info = procedures_icd |> 
+  # exclude rows with other subject id
   filter(subject_id == id) |>
+  # join table to get the type procedures 
   left_join(d_icd_procedures, by = "icd_code") |>
+  # convert date variable to POSIXct format
   mutate(chartdate = as.POSIXct(chartdate, format = "%Y-%m-%d")) |>
+  # represent the type of procedures with first 30 characters
   mutate(long_title = str_sub(long_title, 1, 30))
 
+
 diagnoses_info = diagnoses_icd |> 
+  # exclude rows with other subject id
   filter(subject_id == id) |> 
+  # join table to get the type diagnoses
   left_join(d_icd_diagnoses, by = "icd_code") |> 
-  count(long_title, sort = TRUE) |> 
-  head()
+  # get the occurance of each diagnoses and sort by occurance 
+  count(long_title, sort = TRUE) 
 ```
 
 ```{r}
+# exclude rows with other subject id
 patients_filtered <- patients |> filter(subject_id == id)
+
 admission_filtered <- admission |> 
+  # exclude rows with other subject id
   filter(subject_id == id) |> 
+  # keep one unique row and all variables
   distinct(subject_id, .keep_all = TRUE)
 
 # create a new variable to indicate whether the care unit is an ICU/CCU
 transfer_icu <- transfers  |> 
+  # exclude rows with other subject id
   filter(subject_id == id) |> 
+  # create a new variable to indicate whether the care unit is in ICU/CCU 
   mutate(icu_status = ifelse(str_detect(careunit, "ICU|CCU"), 
                       "ICU/CCU", "non-ICU/CCU"))
 
 ```
 
 ```{r}
+# store subject_id of the patient
 id_char = toString(patients_filtered['subject_id'])
+# store gender of the patient
 gender_char = toString(patients_filtered['gender'])
+# store recorded age of the patient
 age_char = toString(patients_filtered['anchor_age'])
-
+# store race of the patient
 race_char = toString(admission_filtered['race'])
 
+# store top three most occurrence diagonsis of the patient
 diagnoses_info_1 = diagnoses_info['long_title'] |> slice(1)
 diagnoses_info_2 = diagnoses_info['long_title'] |> slice(2)
 diagnoses_info_3 = diagnoses_info['long_title'] |> slice(3)
 
+# create title and subtitle
 title = paste0("Patient ", id_char, ", ", gender_char, ", ", age_char, " years old, ", race_char)
 subtitle = paste0(diagnoses_info_1, "\n", diagnoses_info_2, "\n", diagnoses_info_3)
 ```
 
 ```{r}
+# data visualization
 ggplot() +
+  # create a line segment to represent the hospital stay and use 
+  # different color of segment to represent stays in different care units
   geom_segment(data = transfer_icu, 
-               aes(x = intime, xend = outtime, y = 1, yend = 1, 
+               aes(x = intime, xend = outtime, y = 3, yend = 3,  
                    color = careunit),
+               # adjust the width of the line segment of indicate icu stay
                linewidth = ifelse(transfer_icu$icu_status == 'ICU/CCU', 4, 1)) +
+  # create points to represent the charted lab events with the specific 
+  # subject id
   geom_point(data = labevents |> filter(subject_id == id), 
              aes(x = charttime, y = 2), shape = 3, size = 1) +
+  # create points to represent the charted procedures and use different
+  # shape of points to represent different procedures
   geom_point(data = procedure_info, 
-             aes(x = chartdate, y = 3, shape = long_title), size = 3) +
+             aes(x = chartdate, y = 1, shape = long_title), size = 3) +  
+  # rename the legend for care units
   scale_color_discrete(name = "Care Unit") +
+  # rename the legend for procedures and manually assign shapes
   scale_shape_manual(values=c(1:8), name = "Procedure") +
+  # rename the x and y axis
   xlab('Calender Time') +
   ylab('') +
+  # adjust the theme of the legend
   theme(
     legend.text = element_text(size = 6),
     legend.position = "bottom",
     legend.box = "vertical",
     legend.title.align = 0,
     legend.direction = 'horizontal') +
-  scale_y_continuous(breaks = 1:3, labels = c("ADT", "Lab", "Procedure")) +
-  ggtitle(label = title,
-              subtitle = subtitle)
+  # assign name to each plot on y axis
+  scale_y_continuous(breaks = 1:3, labels = c("Procedure", "Lab", "ADT")) + 
+  # assign title and subtitle
+  ggtitle(label = title, subtitle = subtitle)
 
-  
 ```
 
 ### Q1.2 ICU stays
@@ -147,55 +179,55 @@ ICU stays are a subset of ADT history. This figure shows the vitals of the patie
 
 Do a similar visualization for the patient `10013310`.
 
-```{bash}
-#| eval: false
-gzip -dk < ~/mimic/icu/chartevents.csv.gz > ./chartevents.csv
-```
+
 
 ```{r}
-#| eval: false
-arrow::write_dataset(arrow::open_dataset('./chartevents.csv', format = "csv"), 
-                     './chartevents.parquet')
-```
-
-```{r}
+# manually adjust this subject id to display information for other patient
 id = 10013310
 ```
 
 ```{r}
-
+# read in vitals information
 d_items <- read_csv("~/mimic/icu/d_items.csv.gz")
 
-chartevents <- arrow::open_dataset("./chartevents.parquet") |> 
-  filter(subject_id == id)
+# read in chartevents information and exclude rows with other subject id
+chartevents <- arrow::open_dataset("./chartevents_pq") |> 
+  filter(subject_id == id) |>
+  collect()
 
-chartevents <- as_tibble(chartevents)
-
+# read in icu stays information and exclude rows with other subject id
 icustays <- read_csv("~/mimic/icu/icustays.csv.gz") |>
   filter(subject_id == id)
 ```
 
 ```{r}
-
+# filter out the vitals and variables that are not of interest 
 d_items <- d_items |> 
   filter(itemid %in% c(220045, 220179, 220180, 223761, 220210)) |>
   select(itemid, abbreviation)
 ```
 
 ```{r}
+# filter out the vitals that are not of interest and join with d_items to 
+# get the abbreviation of vitals
 chartevents <- chartevents |> 
   filter(itemid %in% d_items$itemid) |>
   left_join(d_items, by = "itemid")
 ```
 
 ```{r}
-#i want to adjust the scale of y axis to make the plot more readable
+# plot vitals during each ICU stays
 ggplot(chartevents, aes(x = charttime, y = valuenum, color = abbreviation)) +
   geom_point() +
   geom_line() +
+  # set x and y scales of each facet to be free
   facet_grid(abbreviation ~stay_id, scales = "free") +
+  # turn off legend
   theme(legend.position = "none") +
-  ggtitle(label = paste0("Patient ", id, " ICU stays - Vitals"))
+  # add title
+  ggtitle(label = paste0("Patient ", id, " ICU stays - Vitals")) +
+  # adjust x axis to display date and time in a more readable format
+  scale_x_datetime(guide = guide_axis(n.dodge = 2))
 
 ```
 
@@ -221,8 +253,10 @@ Import `icustays.csv.gz` as a tibble `icustays_tble`.
 
 ```{r}
 #| eval: true
+
+# read in icu stays information
 icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz") |>
-  as_tibble()
+  collect()
 ```
 
 ### Q2.2 Summary and visualization
@@ -232,6 +266,7 @@ How many unique `subject_id`? Can a `subject_id` have multiple ICU stays? Summar
 **Answer:** There are 50920 unique `subject_id`. A `subject_id` can have multiple ICU stays. The number of ICU stays per `subject_id` is shown in the following figure.
 
 ```{r}
+# summarize the number of unique subject_id
 icustays_tble |> 
   select(subject_id) |>
   unique() |>
@@ -239,6 +274,7 @@ icustays_tble |>
 ```
 
 ```{r}
+# summarize the number of ICU stays per subject_id by graphs
 icustays_tble |> 
   count(subject_id) |>
   ggplot(aes(x = n)) +
@@ -261,6 +297,8 @@ Import `admissions.csv.gz` as a tibble `admissions_tble`.
 
 ```{r}
 #| eval: true
+
+# read in admissions information
 admissions_tble <- read_csv("~/mimic/hosp/admissions.csv.gz") |>
   collect()
 ```
@@ -281,6 +319,7 @@ According to the [MIMIC-IV documentation](https://mimic.mit.edu/docs/iv/about/co
 **Answer:** The number of admissions per patient is shown in the first figure. It shows strong rightskewness which matches our expectation because majority of people do not need to come to hospital frequently. The admission hour is shown in the following figure. The pattern shows that more people are admitted between 2pm to 12am. There is a peak of admission at 7am which might suggest the time the hospital opens to public in general. The highest peak is at 12am which is unusual since I expect less people to go at midnight. The admission minute is shown in the third figure. The overall pattern is roughly even distributed but there are four unusual peak at 0, 15, 30, 45 minutes. I think there might be rounding at these time points. The length of hospital stay is shown in the last figure. The pattern shows that most people stay in hospital for short period which matches our expectation that most people do not need to stay in hospital for long.
 
 ```{r}
+# summarize the number of admissions per patient by bar plot
 admissions_tble |> 
   count(subject_id) |>
   ggplot(aes(x = n)) +
@@ -290,6 +329,7 @@ admissions_tble |>
 ```
 
 ```{r}
+# summarize the admission hour by bar plot
 admissions_tble |> 
   mutate(hour = hour(admittime)) |>
   ggplot(aes(x = hour)) +
@@ -299,6 +339,7 @@ admissions_tble |>
 ```
 
 ```{r}
+# summarize the admission minute by bar plot
 admissions_tble |> 
   mutate(minute = minute(admittime)) |>
   ggplot(aes(x = minute)) +
@@ -308,6 +349,7 @@ admissions_tble |>
 ```
 
 ```{r}
+# summarize the length of hospital stay by bar plot
 admissions_tble |> 
   mutate(days = difftime(dischtime, admittime, units = "days")) |>
   ggplot(aes(x = days)) +
@@ -330,6 +372,8 @@ Import `patients.csv.gz` (<https://mimic.mit.edu/docs/iv/modules/hosp/patients/>
 
 ```{r}
 #| eval: true
+
+# read in patients information
 patients_tble <- read_csv("~/mimic/hosp/patients.csv.gz") |>
   collect()
 ```
@@ -373,45 +417,63 @@ We are interested in the lab measurements of creatinine (50912), potassium (5097
 Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `labevents_pq` folder available at the current working directory `hw3`, for example, by a symbolic link.
 
 ```{r}
+# read in lab measurements and remove unnecessary measurements
 dlabitems_tble <- read_csv("~/mimic/hosp/d_labitems.csv.gz") |>
   mutate(label = gsub(" ", "_", label)) |>
   filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931))
 ```
 
 ```{r}
+# create a dictionary for itemid and label
 labels <- setNames(dlabitems_tble$label, dlabitems_tble$itemid)
 ```
 
 ```{r}
-
+# read in icustays 
 icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz")
+# read in lab events
 labevents_tble_orig <- arrow::open_dataset("./labevents_pq") |>
+  # select necessary columns
   dplyr::select(subject_id, itemid, valuenum, storetime) |>
+  # filter out unnecessary itemid
   dplyr::filter(itemid %in% dlabitems_tble$itemid) |>
+  # filter out unnecessary subject_id
   dplyr::filter(subject_id %in% icustays_tble$subject_id) |>
+  # convert to tibble
   collect() |>
+  # convert item id to actual labels
   mutate(itemid = labels[as.character(itemid)])
 ```
 
-
 ```{r}
+# create labevents_tble 
 labevents_tble <- labevents_tble_orig |>
+  # join tibble by subject_id
   left_join(
+    # select necessary columns in icustay_tble 
     select(icustays_tble, subject_id, stay_id, intime),
     by = "subject_id"
     ) |>
+  # filter out storetime that is before intime which is caused by joining 
+  # table above. Some people went ICU multiple times
   filter(storetime < intime) |>
+  # group by subject_id, stay_id, itemid
   group_by(subject_id, stay_id, itemid) |>
+  # within the above group, sort by storetime in ascending order
   arrange(storetime, by_group = TRUE) |>
+  # within the above group, slice the last row which is the last 
+  # available measurement
   slice_tail(n = 1) |>
+  # remove unnecessary columns
   select(-storetime, -intime) |>
+  # convert pivot long to pivot wide
   pivot_wider(names_from = itemid, values_from = valuenum) |>
-  rename_with(tolower) 
+  # change the column names to lower case
+  rename_with(tolower) |>
+  print(width = Inf)
 ```
 
-```{r}
-labevents_tble
-```
+
 
 ## Q6. Vitals from charted events
 
@@ -434,43 +496,61 @@ We are interested in the vitals for ICU patients: heart rate (220045), systolic 
 Hint: Use the Parquet format you generated in Homework 2. For reproducibility, make `chartevents_pq` folder available at the current working directory, for example, by a symbolic link.
 
 ```{r}
+# read in vitals and remove unnecessary measurements
 ditems_tble <- read_csv("~/mimic/icu/d_items.csv.gz") |>
+  # replace space in label with underscore
   mutate(label = gsub(" ", "_", label)) |>
+  # filter out unnecessary itemid
   filter(itemid %in% c(220045, 220179, 220180, 223761, 220210))
+# create a dictionary for id of vital and vital
 labels <- setNames(ditems_tble$label, ditems_tble$itemid)
 ```
 
 ```{r}
+# read in icustays
 icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz")
-
+# read in chart events
 chartevents_tble_orig <- arrow::open_dataset("./chartevents_pq") |>
-  dplyr::select(subject_id, stay_id, itemid, valuenum, storetime) |>
+  # select necessary columns
+  dplyr::select(subject_id, stay_id, itemid, valuenum, charttime) |>
+  # filter out unnecessary itemid
   dplyr::filter(itemid %in% ditems_tble$itemid) |>
+  # filter out unnecessary subject_id
   dplyr::filter(stay_id %in% icustays_tble$stay_id) |>
+  # convert to tibble
   collect() |>
+  # convert item id to actual labels (vitals)
   mutate(itemid = labels[as.character(itemid)])
 ```
 
 ```{r}
+# create chartevents_tble
 charevents_tble <- chartevents_tble_orig |>
+  # join tibble by stay_id
   left_join(
+    # select necessary columns in icustay_tble
     select(icustays_tble, stay_id, intime, outtime),
     by = "stay_id"
     ) |>
-  filter(storetime >= intime, storetime < outtime) |>
+  # filter out charttime that is during icu stay
+  filter(charttime >= intime, charttime <= outtime) |>
+  # group by stay_id, itemid
   group_by(stay_id, itemid) |>
-  arrange(storetime, by_group = TRUE) |>
+  # within the above group, sort by charttime in ascending order
+  arrange(charttime, by_group = TRUE) |>
+  # within the above group, slice the first row which is the first vital
   slice_head(n = 1) |>
-  select(-storetime, -intime, -outtime) |>
+  # remove unnecessary columns
+  select(-charttime, -intime, -outtime) |>
+  # convert pivot long to pivot wide
   pivot_wider(names_from = itemid, values_from = valuenum) |>
+  # change the column names to lower case
   rename_with(tolower) |>
+  # sort by subject_id, stay_id in ascending order
   arrange(subject_id, stay_id) |>
   print(width = Inf)
 ```
 
-```{r}
-charevents_tble
-```
 
 
 ## Q7. Putting things together
@@ -488,6 +568,7 @@ The final `mimic_icu_cohort` should have one row per ICU stay and columns for ea
 ![](mimic_icu_cohort.png)
 
 ```{r}
+# read in necessary data and convert some of them to tibble
 patients_tble <- read_csv("~/mimic/hosp/patients.csv.gz") |>
   collect()
 admissions_tble <- read_csv("~/mimic/hosp/admissions.csv.gz") |>
@@ -496,12 +577,16 @@ icustays_tble <- read_csv("~/mimic/icu/icustays.csv.gz")
 ```
 
 ```{r}
+# join all the necessary tibbles
 mimic_icu_cohort <- icustays_tble |>
   left_join(admissions_tble, by = c("subject_id", "hadm_id")) |>
   left_join(patients_tble, by = "subject_id") |>
   left_join(labevents_tble, by = c("subject_id", "stay_id")) |>
   left_join(charevents_tble, by = c("subject_id", "stay_id")) |>
-  filter(anchor_age >= 18) |>
+  # create a new variable age_intime which represents the age at intime
+  mutate(age_intime = anchor_age + (year(intime) - anchor_year)) |>
+  # filter out age at in time greater 18
+  filter(age_intime >= 18) |>
   print(width = Inf)
 ```
 
@@ -511,9 +596,95 @@ Summarize the following information about the ICU stay cohort `mimic_icu_cohort`
 
 -   Length of ICU stay `los` vs demographic variables (race, insurance, marital_status, gender, age at intime)
 
+```{r}
+ggplot(data = mimic_icu_cohort) + 
+  geom_jitter(mapping = aes(x = age_intime, y = los, color = insurance)) 
+```
+
+```{r}
+ggplot(data = mimic_icu_cohort) + 
+  geom_col(mapping = aes(x = marital_status, y = los, fill = gender)) 
+```
+
+```{r}
+# For race, combine all string start with ASIAN
+mimic_icu_cohort <- mimic_icu_cohort |> 
+  mutate(race = as.factor(race)) |> # Ensure race is a factor
+  mutate(race = fct_collapse(
+    race,
+    ASIAN = str_subset(race, "ASIAN"),
+    BLACK = str_subset(race, "BLACK"),
+    HISPANIC = str_subset(race, "HISPANIC"),
+    WHITE = str_subset(race, "WHITE"),
+    UNKNOWN = c("UNABLE TO OBTAIN", "PATIENT DECLINED TO ANSWER"),
+    OTHER = c("AMERICAN INDIAN/ALASKA NATIVE", "MULTIPLE RACE/ETHNICITY", 
+              "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER", "PORTUGUESE", 
+              "SOUTH AMERICAN")
+  ))
+```
+
+```{r}
+ggplot(data = mimic_icu_cohort) + 
+  geom_boxplot(mapping = aes(x = race, y = los, fill = race)) +
+  theme(legend.position = "none") +
+  coord_flip() +
+  ylab('Length of Stay')
+  
+```
 
 -   Length of ICU stay `los` vs the last available lab measurements before ICU stay
 
--   Length of ICU stay `los` vs the average vital measurements within the ICU stay
+```{r}
+dlabitems_tble <- read_csv("~/mimic/hosp/d_labitems.csv.gz") |>
+  mutate(label = gsub(" ", "_", label)) |>
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931))
+```
+
+```{r}
+labels_lab <- setNames(dlabitems_tble$label, dlabitems_tble$itemid)
+```
+
+```{r}
+for (name in names(labels_lab)) { 
+  lab_measure = tolower(labels_lab[name])
+  plot <- ggplot(data = mimic_icu_cohort) + 
+    geom_point(mapping = aes(x = !!sym(lab_measure), y = los)) +
+    ylab('Length of Stay')
+  print(plot)
+}
+```
+
+-   Length of ICU stay `los` vs the first vital measurements within the ICU stay
+
+```{r}
+ditems_tble <- read_csv("~/mimic/icu/d_items.csv.gz") |>
+  mutate(label = gsub(" ", "_", label)) |>
+  filter(itemid %in% c(220045, 220179, 220180, 223761, 220210))
+labels_vitals <- setNames(ditems_tble$label, ditems_tble$itemid)
+```
+
+```{r}
+for (name in names(labels_vitals)) { 
+  vital = tolower(labels_vitals[name])
+  plot <- ggplot(data = mimic_icu_cohort) + 
+    geom_point(mapping = aes(x = !!sym(vital), y = los)) +
+    ylab('Length of Stay')
+  print(plot)
+}
+```
 
 -   Length of ICU stay `los` vs first ICU unit
+
+```{r}
+ggplot(data = mimic_icu_cohort) + 
+  geom_boxplot(mapping = aes(x = first_careunit, y = los, 
+                             fill = first_careunit)) +
+  theme(legend.position = "bottom") +
+  guides(fill = guide_legend(nrow = 3, ncol = 3)) +
+  coord_flip() +
+  xlab('Length of Stay') +
+  ylab('') +
+  labs(title = "Length of ICU stay versus first ICU unit", fill = "ICU Unit")
+  
+
+```
