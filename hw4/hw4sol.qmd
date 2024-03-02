@@ -127,36 +127,39 @@ Connect to the `labevents` table and retrieve a subset that only contain subject
 **Answer**
 
 ```{r}
+dlabitems_tble <- tbl(con_bq, "d_labitems") |>
+  mutate(label = gsub(" ", "_", label)) |>
+  filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 51301, 50931))
+```
+
+```{r}
 
 labevents_tble <- tbl(con_bq, "labevents") |>
-  #select(subject_id, itemid, valuenum, storetime) |>
-  # filter out unnecessary itemid
-  # filter out unnecessary subject_id
-  #filter(subject_id %in% icustays_tble$subject_id) |>
   semi_join(icustays_tble, by = "subject_id")  |>
   select(subject_id, itemid, valuenum, storetime) |>
   filter(itemid %in% c(50912, 50971, 50983, 50902, 50882, 51221, 
                        51301, 50931)) |>
+  left_join(select(dlabitems_tble, itemid, label), by = "itemid") |>
   left_join(
-    # select necessary columns in icustay_tble 
+    # select necessary columns in icustay_tble
     select(icustays_tble, subject_id, stay_id, intime),
     by = "subject_id"
     ) |>
-  # filter out storetime that is before intime which is caused by joining 
+  # filter out storetime that is before intime which is caused by joining
   # table above. Some people went ICU multiple times
   filter(storetime < intime) |>
-  group_by(subject_id, stay_id, itemid) |>
+  group_by(subject_id, stay_id, label) |>
   # within the above group, sort by storetime in ascending order
-  # within the above group, slice the last row which is the last 
+  # within the above group, slice the last row which is the last
   # available measurement
   slice_max(order_by = storetime, n = 1) |>
   # remove unnecessary columns
   # select(-storetime, -intime) |>
   # convert pivot long to pivot wide
   ungroup() |>
-  select(-storetime, -intime) |>
+  select(-storetime, -intime, -itemid) |>
   group_by(subject_id, stay_id) |>
-  pivot_wider(names_from = itemid, values_from = valuenum) |>
+  pivot_wider(names_from = label, values_from = valuenum) |>
   arrange(subject_id) |>
   show_query() |>
   print(width = Inf)
@@ -167,12 +170,22 @@ labevents_tble <- tbl(con_bq, "labevents") |>
 Connect to `chartevents` table and retrieve a subset that only contain subjects who appear in `icustays_tble` and the chart events listed in HW3. Only keep the first chart events during ICU stay and pivot chart events to become variables/columns. Write all steps in *one* chain of pipes.
 
 **Answer**
+```{r}
+# read in vitals and remove unnecessary measurements
+ditems_tble <- tbl(con_bq, "d_items") |>
+  # replace space in label with underscore
+  mutate(label = gsub(" ", "_", label)) |>
+  # filter out unnecessary itemid
+  filter(itemid %in% c(220045, 220179, 220180, 223761, 220210))
+```
+
 
 ```{r}
 chartevents_tble <- tbl(con_bq, "chartevents") |>
   semi_join(icustays_tble, by = "subject_id") |>
   select(subject_id, stay_id, itemid, valuenum, charttime) |>
   filter(itemid %in% c(220045, 220179, 220180, 223761, 220210)) |>
+  left_join(select(ditems_tble, itemid, label), by = "itemid") |>
   left_join(
     # select necessary columns in icustay_tble
     select(icustays_tble, stay_id, intime, outtime),
@@ -181,15 +194,15 @@ chartevents_tble <- tbl(con_bq, "chartevents") |>
   # filter out charttime that is during icu stay
   filter(charttime >= intime, charttime <= outtime) |>
   # group by stay_id, itemid
-  group_by(stay_id, itemid) |>
+  group_by(stay_id, label) |>
   # within the above group, slice the first row which is the first vital
   slice_min(order_by = charttime, n = 1) |>
   ungroup() |>
   # remove unnecessary columns
-  select(-charttime, -intime, -outtime) |>
+  select(-charttime, -intime, -outtime, -itemid) |>
   group_by(subject_id, stay_id) |>
   # convert pivot long to pivot wide
-  pivot_wider(names_from = itemid, values_from = valuenum) |>
+  pivot_wider(names_from = label, values_from = valuenum) |>
   # sort by subject_id, stay_id in ascending order
   arrange(subject_id, stay_id) |>
   show_query() |>
