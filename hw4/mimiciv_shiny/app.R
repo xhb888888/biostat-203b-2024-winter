@@ -41,7 +41,8 @@ ui <- fluidPage(
   tabsetPanel(
     tabPanel("Summary",
              selectInput("category", "Select Category:", 
-                         choices = c("None", "Demographic", "Lab Measurements", "Vitals")),
+                         choices = c("None", "Demographic", 
+                                     "Lab Measurements", "Vitals")),
              uiOutput("subCategory"),
              checkboxInput("showNumeric", "Numeric", value = FALSE),
              checkboxInput("showGraph", "Graphic", value = FALSE),
@@ -75,13 +76,20 @@ server <- function(input, output, session) {
   output$subCategory <- renderUI({
     if (input$category == "Demographic") {
       selectInput("subCategoryDemo", "Select Demographic Option:", 
-                  choices = c("None", "Gender", "Age")) # Replace with actual options
+                  choices = c("None", "Gender", "Age", "Insurance Type",
+                              "Marital Status", "Race", "Language")) 
     } else if (input$category == "Lab Measurements") {
       selectInput("subCategoryLab", "Select Lab Measurement:", 
-                  choices = c("None", "Measurement 1", "Measurement 2")) # Replace with actual options
+                  choices = c("None", "Sodium", "Glucose",
+                              "Chloride", "Potassium", "Creatinine", 
+                              "Hematocrit", "Bicarbonate", 
+                              "White Blood Cells")) 
     } else if (input$category == "Vitals") {
       selectInput("subCategoryVital", "Select Vital:", 
-                  choices = c("None", "Vital 1", "Vital 2")) # Replace with actual options
+                  choices = c("None", "Heart Rate", "Respiratory Rate",
+                              "Temperature Fahrenheit",
+                              "Non Invasive Blood Pressure systolic",
+                              "Non Invasive Blood Pressure diastolic")) 
     }
   })
   # Observe changes in the category and subcategory selections
@@ -137,14 +145,197 @@ server <- function(input, output, session) {
     # Graphical Summary
     output$graphicalSummary <- renderPlot({
       if (!is.null(selectedSubCategory) && input$showGraph) {
-        if (selectedSubCategory == "Gender") {
-          ggplot(data = mimic_icu_cohort) +
-            geom_bar(aes(x = gender, fill = gender)) +
-            ggtitle("Gender count among patients")
-        } else if (selectedSubCategory == "Age") {
-          ggplot(data = mimic_icu_cohort) +
-            geom_histogram(aes(x = age_intime), bins = 30) +
-            ggtitle("Age distribution among patients")
+        if (input$category == "Demographic"){
+          plot <- switch(selectedSubCategory,
+                         "Gender" = ggplot(data = mimic_icu_cohort) +
+                           geom_bar(aes(x = gender, fill = gender)) +
+                           ggtitle("Gender count among patients"),
+                         "Age" = ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(aes(x = age_intime), bins = 30) +
+                           ggtitle("Age distribution among patients"),
+                         "Insurance Type" = ggplot(data = mimic_icu_cohort) +
+                           geom_bar(aes(x = insurance, fill = insurance)) +
+                           ggtitle(paste("Insurance Type distribution",
+                           "among patients")),
+                         "Marital Status" = ggplot(data = mimic_icu_cohort) +
+                           geom_bar(
+                             aes(x = marital_status, 
+                                 fill = marital_status)
+                             ) +
+                           ggtitle(paste("Marital Status distribution",
+                           "among patients")),
+                         "Race" = ggplot(data = mimic_icu_cohort) +
+                           geom_bar(aes(x = race, fill = race)) +
+                           ggtitle("Race distribution among patients"),
+                         "Language" = ggplot(data = mimic_icu_cohort) +
+                           geom_bar(aes(x = language, fill = language)) +
+                           ggtitle(paste("Language Spoken distribution",
+                           "among patients"))
+          )
+        } 
+        else if (input$category == "Vitals"){
+          plot <- switch(selectedSubCategory,
+                         "Heart Rate" = ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 2, 
+                             aes(x = Heart_Rate), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(0, 200, 10), 
+                             lim = c(0, 200)
+                             ) +
+                           ggtitle("Heart Rate distribution among patients"),
+                         
+                         "Respiratory Rate" = ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 1, 
+                             aes(x = Respiratory_Rate), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(0, 80, 5), 
+                             lim = c(0, 80)
+                             ) +
+                           ggtitle(paste("Respiratory Rate distribution",
+                           "among patients")),
+                         
+                         "Temperature Fahrenheit" = ggplot(
+                           data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 0.1, 
+                             aes(x = Temperature_Fahrenheit), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(80, 110, 5), 
+                             lim = c(80, 110)
+                             ) +
+                           ggtitle(paste("Temperature Fahrenheit",
+                           "distribution among patients")
+                           ),
+                         
+                         "Non Invasive Blood Pressure systolic" = 
+                           ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 1,
+                             aes(x = Non_Invasive_Blood_Pressure_systolic), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(0, 250, 5), 
+                             lim = c(0, 250)
+                             ) +
+                           ggtitle(
+                             paste("Non Invasive Blood Pressure",
+                             "systolic distribution among patients")),
+                         
+                         "Non Invasive Blood Pressure diastolic" = 
+                           ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 1,
+                             aes(x = Non_Invasive_Blood_Pressure_diastolic), 
+                             ) + 
+                           scale_x_continuous(
+                             breaks = seq(0, 250, 5), 
+                             lim = c(0, 250)) +
+                           ggtitle(paste("Non Invasive Blood Pressure",
+                           "diastolic distribution among patients"))
+          )
+        } 
+        else if (input$category == "Lab Measurements"){
+          plot <- switch(selectedSubCategory,
+                         "Sodium" = ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 2, 
+                             aes(x = Sodium), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(90, 180, 5),
+                             lim = c(90, 180)
+                             ) +
+                           ggtitle("Sodium distribution among patients"),
+                         
+                         "Glucose" = ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 5,
+                             aes(x = Glucose), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(0, 600, 20),
+                             lim = c(0, 600)
+                             ) +
+                           ggtitle("Glucose distribution among patients"),
+                         
+                         "Potassium" = ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 0.1,
+                             aes(x = Potassium), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(0, 10, 2),
+                             lim = c(0, 10)
+                             ) +
+                           ggtitle("Potassium distribution among patients"),
+                         
+                         "Chloride" = ggplot(data = mimic_icu_cohort) +
+                           geom_histogram(
+                             binwidth = 2,
+                             aes(x = Chloride), 
+                             ) +
+                           scale_x_continuous(
+                             breaks = seq(60, 150, 5),
+                             lim = c(60, 150)
+                             ) +
+                           ggtitle("Chloride distribution among patients"),
+                         
+                         "Bicarbonate" = ggplot(data = mimic_icu_cohort) +
+                             geom_histogram(
+                               binwidth = 0.5,
+                               aes(x = Bicarbonate), 
+                               ) +
+                             scale_x_continuous(
+                               breaks = seq(0, 50, 2),
+                               lim = c(0, 50)
+                               ) +
+                             ggtitle("Bicarbonate distribution among patients"),
+                         
+                         "Creatinine" = ggplot(data = mimic_icu_cohort) +
+                               geom_histogram(
+                                 binwidth = 0.1,
+                                 aes(x = Creatinine), 
+                                 ) +
+                               scale_x_continuous(
+                                 breaks = seq(0, 10, 2),
+                                 lim = c(0, 10)
+                                 ) +
+                               ggtitle(paste("Creatinine distribution",
+                               "among patients")),
+                         
+                         "Hematocrit" = ggplot(data = mimic_icu_cohort) +
+                                   geom_histogram(
+                                     binwidth = 0.5,
+                                     aes(x = Hematocrit), 
+                                     ) +
+                                   scale_x_continuous(
+                                     breaks = seq(0, 70, 5),
+                                     lim = c(0, 70)
+                                     ) +
+                                   ggtitle(paste("Hematocrit distribution",
+                                   "among patients")),
+                         
+                         "White Blood Cells" = ggplot(data = mimic_icu_cohort) +
+                                       geom_histogram(
+                                         binwidth = 1,
+                                         aes(x = White_Blood_Cells), 
+                                         ) +
+                                       scale_x_continuous(
+                                         breaks = seq(0, 80, 2),
+                                         lim = c(0, 80)
+                                         ) +
+                                       ggtitle(paste("White Blood Cell Count",
+                                       "distribution among patients"))
+                         
+          )
+        }
+        if (!is.null(plot)) {
+          return(plot)
         }
       }
     })
@@ -200,7 +391,8 @@ server <- function(input, output, session) {
         transfer_icu <- transfers  |>
           # exclude rows with other subject id
           filter(subject_id == id) |>
-          # create a new variable to indicate whether the care unit is in ICU/CCU
+          # create a new variable to indicate whether the care 
+          # unit is in ICU/CCU
           mutate(icu_status = ifelse(str_detect(careunit, "ICU|CCU"),
                                      "ICU/CCU", "non-ICU/CCU")) |>
           # exclude rows with missing value in careunit
@@ -247,11 +439,13 @@ server <- function(input, output, session) {
         # data visualization
         ggplot() +
           # create a line segment to represent the hospital stay and use 
-          # different color of segment to represent stays in different care units
+          # different color of segment to represent stays in different 
+          # care units
           geom_segment(data = transfer_icu, 
                        aes(x = intime, xend = outtime, y = 3, yend = 3,  
                            color = careunit),
-                       # adjust the width of the line segment of indicate icu stay
+                       # adjust the width of the line segment of indicate 
+                       # icu stay
                        linewidth = ifelse(transfer_icu$icu_status == 'ICU/CCU', 
                                           4, 1)) +
           # create points to represent the charted lab events with the specific 
@@ -263,7 +457,8 @@ server <- function(input, output, session) {
           geom_point(data = procedure_info, 
                      aes(x = chartdate, y = 1, shape = long_title), size = 3) + 
           # rename the legend for procedures and manually assign shapes
-          scale_shape_manual(values = c(1:procedure_info_count), name = "Procedure") +
+          scale_shape_manual(values = c(1:procedure_info_count), 
+                             name = "Procedure") +
           # rename the legend for care units
           scale_color_discrete(name = "Care Unit") +
           # adjust legend orders and the number of rows and columns
@@ -284,7 +479,8 @@ server <- function(input, output, session) {
             legend.title.align = 0,
             legend.direction = 'horizontal') +
           # assign name to each plot on y axis
-          scale_y_continuous(breaks = 1:3, labels = c("Procedure", "Lab", "ADT")) + 
+          scale_y_continuous(breaks = 1:3, labels = c("Procedure", 
+                                                      "Lab", "ADT")) + 
           # assign title and subtitle
           ggtitle(label = title, subtitle = subtitle)
       } else if (selectedADTorICU == "ICU stay"){
@@ -298,7 +494,8 @@ server <- function(input, output, session) {
           filter(subject_id == id) |>
           collect() |>
           # convert date variable to POSIXct format
-          mutate(charttime = as.POSIXct(charttime, format = "%Y-%m-%d %H:%M:%S")) |>
+          mutate(charttime = as.POSIXct(charttime, 
+                                        format = "%Y-%m-%d %H:%M:%S")) |>
           filter(itemid %in% d_items$itemid) |>
           left_join(d_items, by = "itemid")
 
@@ -307,7 +504,8 @@ server <- function(input, output, session) {
           filter(subject_id == id) 
         
         # plot vitals during each ICU stays
-        ggplot(chartevents, aes(x = charttime, y = valuenum, color = abbreviation)) +
+        ggplot(chartevents, aes(x = charttime, y = valuenum, 
+                                color = abbreviation)) +
           geom_point() +
           geom_line() +
           # set x and y scales of each facet to be free
