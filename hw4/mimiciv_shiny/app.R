@@ -8,6 +8,7 @@ library(gt)
 library(tidyverse)
 library(dbplyr)
 library(shinycssloaders)
+library(highcharter)
 
 # Load the data
 mimic_icu_cohort <- readRDS("mimic_icu_cohort.rds")
@@ -39,10 +40,11 @@ icustays <- tbl(con_bq, "icustays")
 ui <- fluidPage(
   titlePanel("ICU Cohort Data Exploration"),
   tabsetPanel(
-    tabPanel("Summary",
+    tabPanel("Patient characteristics",
              selectInput("category", "Select Category:", 
                          choices = c("None", "Demographic", 
-                                     "Lab Measurements", "Vitals")),
+                                     "Lab Measurements", "Vitals", 
+                                     "Care unit")),
              uiOutput("subCategory"),
              checkboxInput("showNumeric", "Numeric", value = FALSE),
              checkboxInput("showGraph", "Graphic", value = FALSE),
@@ -55,7 +57,7 @@ ui <- fluidPage(
                plotOutput("graphicalSummary")
              )
     ),
-    tabPanel("Patient Details",
+    tabPanel("Patient's ADT and ICU stay information",
              selectizeInput(
                inputId = "PatientID",
                label = "Select Patient ID:",
@@ -90,6 +92,9 @@ server <- function(input, output, session) {
                               "Temperature Fahrenheit",
                               "Non Invasive Blood Pressure systolic",
                               "Non Invasive Blood Pressure diastolic")) 
+    } else if (input$category == "Care unit") {
+      selectInput("subCategoryCareUnit", "Select Care Unit:", 
+                  choices = c("None", "First care unit", "Last care unit")) 
     }
   })
   # Observe changes in the category and subcategory selections
@@ -98,6 +103,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "subCategoryDemo", selected = "None")
     updateSelectInput(session, "subCategoryLab", selected = "None")
     updateSelectInput(session, "subCategoryVital", selected = "None")
+    updateSelectInput(session, "subCategoryCareUnit", selected = "None")
   })
   
   
@@ -111,36 +117,217 @@ server <- function(input, output, session) {
       selectedSubCategory <- input$subCategoryLab
     } else if (input$category == "Vitals") {
       selectedSubCategory <- input$subCategoryVital
+    } else if (input$category == "Care unit") {
+      selectedSubCategory <- input$subCategoryCareUnit
     }
     
-    output$numericSummary <- renderTable({
+    output$numericSummary <- render_gt({
       if (!is.null(selectedSubCategory) && input$showNumeric) {
-        if (selectedSubCategory == "Gender") {
-          return(mimic_icu_cohort |>
-                   select(gender) |>
-                   tbl_summary(
-                     missing_text = "(Missing)"
-                   ))
-          # summary_table <- mimic_icu_cohort |>
-          #   select(gender) |>
-          #   tbl_summary()
-          # gt_output <- as_gt(summary_table)
-          # htmltools::tagList(gt_output)
-        } else if (selectedSubCategory == "Age") {
-          mimic_icu_cohort |> 
-                   select(age_intime) |>
-                   tbl_summary(
-                     type = all_continuous() ~ "continuous2",
-                     statistic = all_continuous() ~ c(
-                       "{N_nonmiss}",
-                       "{median} ({p25}, {p75})",
-                       "{min}, {max}"
-                     ),
-                     missing = "no"
-                   )
+        if (input$category == "Demographic"){
+          table = switch(selectedSubCategory,
+                         "Gender" = mimic_icu_cohort |>
+                           select(gender) |>
+                           tbl_summary(), 
+                         
+                         "Age" = mimic_icu_cohort |>
+                           select(age_intime) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Insurance Type" = mimic_icu_cohort |>
+                           select(insurance) |>
+                           tbl_summary(),
+                         
+                         "Marital Status" = mimic_icu_cohort |>
+                           select(marital_status) |>
+                           tbl_summary(),
+                         
+                         "Race" = mimic_icu_cohort |>
+                           select(race) |>
+                           tbl_summary(),
+                         
+                         "Language" = mimic_icu_cohort |>
+                           select(language) |>
+                           tbl_summary()
+                         )
+        }
+        else if (input$category == "Lab Measurements"){
+          table = switch(selectedSubCategory,
+                         "Sodium" = mimic_icu_cohort |>
+                           select(Sodium) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Glucose" = mimic_icu_cohort |>
+                           select(Glucose) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Chloride" = mimic_icu_cohort |>
+                           select(Chloride) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Potassium" = mimic_icu_cohort |>
+                           select(Potassium) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Creatinine" = mimic_icu_cohort |>
+                           select(Creatinine) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Hematocrit" = mimic_icu_cohort |>
+                           select(Hematocrit) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Bicarbonate" = mimic_icu_cohort |>
+                           select(Bicarbonate) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                        
+                         "White Blood Cell Count" = mimic_icu_cohort |>
+                           select(White_Blood_Cells) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no")
+                         )
+        }
+        else if (input$category == "Vitals"){
+          table = switch(selectedSubCategory,
+                         "Heart Rate" = mimic_icu_cohort |>
+                           select(Heart_Rate) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Respiratory Rate" = mimic_icu_cohort |>
+                           select(Respiratory_Rate) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Temperature Fahrenheit" = mimic_icu_cohort |>
+                           select(Temperature_Fahrenheit) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Non Invasive Blood Pressure systolic" = mimic_icu_cohort |>
+                           select(Non_Invasive_Blood_Pressure_systolic) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no"),
+                         
+                         "Non Invasive Blood Pressure diastolic" = mimic_icu_cohort |>
+                           select(Non_Invasive_Blood_Pressure_systolic) |>
+                           tbl_summary(
+                             type = all_continuous() ~ "continuous2",
+                             statistic = all_continuous() ~ c(
+                               "{N_nonmiss}",
+                               "{median} ({p25}, {p75})",
+                               "{min}, {max}"
+                             ),
+                             missing = "no")
+          ) 
+        }
+        else if (input$category == "Care unit"){
+          table = switch(selectedSubCategory,
+                         
+                         "First care unit" = mimic_icu_cohort |>
+                           select(first_careunit) |>
+                           tbl_summary(
+                             type = all_categorical() ~ "categorical",
+                             missing = "no"),
+                         
+                         "Last care unit" = mimic_icu_cohort |>
+                           select(last_careunit) |>
+                           tbl_summary(
+                             type = all_categorical() ~ "categorical",
+                             missing = "no")
+          )
+        }
+        if (!is.null(table)) {
+          table <- table |> as_gt()
+          return(table)
         }
       }
-    }, show = input$showNumeric)  
+    })  
     
     # Graphical Summary
     output$graphicalSummary <- renderPlot({
@@ -332,6 +519,26 @@ server <- function(input, output, session) {
                                        ggtitle(paste("White Blood Cell Count",
                                        "distribution among patients"))
                          
+          )
+        }
+        else if (input$category == "Care unit"){
+          plot <- switch(selectedSubCategory,
+                         "First care unit" = ggplot(data = mimic_icu_cohort) +
+                           geom_bar(
+                             aes(x = first_careunit),
+                             fill = "blue"
+                             ) +
+                           ggtitle("First care unit distribution among patients"),
+                         # "First care unit" = mimic_icu_cohort |>
+                         #   hchart("pie", hcaes(x = ))
+                         #   ,
+                         
+                         "Last care unit" = ggplot(data = mimic_icu_cohort) +
+                           geom_bar(
+                             aes(x = last_careunit), 
+                             fill = "blue"
+                             ) +
+                           ggtitle("Last care unit distribution among patients")
           )
         }
         if (!is.null(plot)) {
