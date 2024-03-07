@@ -8,7 +8,7 @@ library(gt)
 library(tidyverse)
 library(dbplyr)
 library(shinycssloaders)
-library(highcharter)
+
 
 # Load the data
 mimic_icu_cohort <- readRDS("mimic_icu_cohort.rds")
@@ -125,6 +125,7 @@ server <- function(input, output, session) {
       if (!is.null(selectedSubCategory) && input$showNumeric) {
         if (input$category == "Demographic"){
           table = switch(selectedSubCategory,
+                         
                          "Gender" = mimic_icu_cohort |>
                            select(gender) |>
                            tbl_summary(), 
@@ -159,6 +160,7 @@ server <- function(input, output, session) {
         }
         else if (input$category == "Lab Measurements"){
           table = switch(selectedSubCategory,
+                         
                          "Sodium" = mimic_icu_cohort |>
                            select(Sodium) |>
                            tbl_summary(
@@ -250,6 +252,7 @@ server <- function(input, output, session) {
         }
         else if (input$category == "Vitals"){
           table = switch(selectedSubCategory,
+                         
                          "Heart Rate" = mimic_icu_cohort |>
                            select(Heart_Rate) |>
                            tbl_summary(
@@ -283,7 +286,8 @@ server <- function(input, output, session) {
                              ),
                              missing = "no"),
                          
-                         "Non Invasive Blood Pressure systolic" = mimic_icu_cohort |>
+                         "Non Invasive Blood Pressure systolic" = 
+                           mimic_icu_cohort |>
                            select(Non_Invasive_Blood_Pressure_systolic) |>
                            tbl_summary(
                              type = all_continuous() ~ "continuous2",
@@ -294,7 +298,8 @@ server <- function(input, output, session) {
                              ),
                              missing = "no"),
                          
-                         "Non Invasive Blood Pressure diastolic" = mimic_icu_cohort |>
+                         "Non Invasive Blood Pressure diastolic" = 
+                           mimic_icu_cohort |>
                            select(Non_Invasive_Blood_Pressure_systolic) |>
                            tbl_summary(
                              type = all_continuous() ~ "continuous2",
@@ -365,10 +370,13 @@ server <- function(input, output, session) {
                            xlab('Race') +
                            ggtitle("Race distribution among patients"),
                          
-                         "Language" = ggplot(data = mimic_icu_cohort |>
-                                               mutate(language = ifelse(language == '?', 
-                                                                        'Unknown', 
-                                                                        language))) +
+                         "Language" = ggplot(data = 
+                                               mimic_icu_cohort |>
+                                               mutate(language = 
+                                                        ifelse(
+                                                          language == '?',
+                                                          'Unknown',
+                                                          language))) +
                            geom_bar(aes(x = language, fill = language)) +
                            xlab('Language') +
                            ggtitle(paste("Language Spoken distribution",
@@ -377,6 +385,7 @@ server <- function(input, output, session) {
         } 
         else if (input$category == "Vitals"){
           plot <- switch(selectedSubCategory,
+                         
                          "Heart Rate" = ggplot(data = mimic_icu_cohort) +
                            geom_histogram(
                              binwidth = 2, 
@@ -448,6 +457,7 @@ server <- function(input, output, session) {
         } 
         else if (input$category == "Lab Measurements"){
           plot <- switch(selectedSubCategory,
+                         
                          "Sodium" = ggplot(data = mimic_icu_cohort) +
                            geom_histogram(
                              binwidth = 2, 
@@ -551,6 +561,7 @@ server <- function(input, output, session) {
         }
         else if (input$category == "Care unit"){
           plot <- switch(selectedSubCategory,
+                         
                          "First care unit" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(
                              aes(x = first_careunit,
@@ -559,7 +570,8 @@ server <- function(input, output, session) {
                            xlab('') +
                            guides(fill=guide_legend(title="First care unit")) +
                            coord_flip() +
-                           ggtitle("First care unit distribution among patients"),
+                           ggtitle(paste("First care unit distribution",
+                                          "among patients")),
                          
                          "Last care unit" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(
@@ -569,7 +581,8 @@ server <- function(input, output, session) {
                            xlab('') + 
                            guides(fill=guide_legend(title="Last care unit")) +
                            coord_flip() +
-                           ggtitle("Last care unit distribution among patients")
+                           ggtitle(paste("Last care unit distribution",
+                                         "among patients"))
           )
         }
         if (!is.null(plot)) {
@@ -603,7 +616,7 @@ server <- function(input, output, session) {
           collect() |>
           # convert date variable to POSIXct format
           mutate(chartdate = as.POSIXct(chartdate, format = "%Y-%m-%d")) |>
-          # represent the type of procedures with first 30 characters
+          # represent the type of procedures with first 50 characters
           mutate(long_title = str_sub(long_title, 1, 50))
         
         
