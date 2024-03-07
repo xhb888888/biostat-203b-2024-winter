@@ -15,7 +15,7 @@ mimic_icu_cohort <- readRDS("mimic_icu_cohort.rds")
 
 # path to the service account token 
 satoken <- "../biostat-203b-2024-winter-313290ce47a6.json"
-# BigQuery authentication using service account
+
 bq_auth(path = satoken)
 
 con_bq <- dbConnect(
@@ -236,7 +236,7 @@ server <- function(input, output, session) {
                              ),
                              missing = "no"),
                         
-                         "White Blood Cell Count" = mimic_icu_cohort |>
+                         "White Blood Cells" = mimic_icu_cohort |>
                            select(White_Blood_Cells) |>
                            tbl_summary(
                              type = all_continuous() ~ "continuous2",
@@ -334,28 +334,43 @@ server <- function(input, output, session) {
       if (!is.null(selectedSubCategory) && input$showGraph) {
         if (input$category == "Demographic"){
           plot <- switch(selectedSubCategory,
+                         
                          "Gender" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(aes(x = gender, fill = gender)) +
+                           xlab('Gender') +
                            ggtitle("Gender count among patients"),
+                         
                          "Age" = ggplot(data = mimic_icu_cohort) +
                            geom_histogram(aes(x = age_intime), bins = 30) +
+                           xlab('Age') +
                            ggtitle("Age distribution among patients"),
+                         
                          "Insurance Type" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(aes(x = insurance, fill = insurance)) +
+                           xlab('Insurance Type') +
                            ggtitle(paste("Insurance Type distribution",
                            "among patients")),
+                         
                          "Marital Status" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(
                              aes(x = marital_status, 
                                  fill = marital_status)
                              ) +
+                           xlab('Marital Status') +
                            ggtitle(paste("Marital Status distribution",
                            "among patients")),
+                         
                          "Race" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(aes(x = race, fill = race)) +
+                           xlab('Race') +
                            ggtitle("Race distribution among patients"),
-                         "Language" = ggplot(data = mimic_icu_cohort) +
+                         
+                         "Language" = ggplot(data = mimic_icu_cohort |>
+                                               mutate(language = ifelse(language == '?', 
+                                                                        'Unknown', 
+                                                                        language))) +
                            geom_bar(aes(x = language, fill = language)) +
+                           xlab('Language') +
                            ggtitle(paste("Language Spoken distribution",
                            "among patients"))
           )
@@ -371,6 +386,7 @@ server <- function(input, output, session) {
                              breaks = seq(0, 200, 10), 
                              lim = c(0, 200)
                              ) +
+                           xlab('Heart Rate') +
                            ggtitle("Heart Rate distribution among patients"),
                          
                          "Respiratory Rate" = ggplot(data = mimic_icu_cohort) +
@@ -382,6 +398,7 @@ server <- function(input, output, session) {
                              breaks = seq(0, 80, 5), 
                              lim = c(0, 80)
                              ) +
+                           xlab('Respiratory Rate') +
                            ggtitle(paste("Respiratory Rate distribution",
                            "among patients")),
                          
@@ -395,6 +412,7 @@ server <- function(input, output, session) {
                              breaks = seq(80, 110, 5), 
                              lim = c(80, 110)
                              ) +
+                           xlab('Temperature Fahrenheit') +
                            ggtitle(paste("Temperature Fahrenheit",
                            "distribution among patients")
                            ),
@@ -409,6 +427,7 @@ server <- function(input, output, session) {
                              breaks = seq(0, 250, 5), 
                              lim = c(0, 250)
                              ) +
+                           xlab('Non Invasive Blood Pressure systolic') + 
                            ggtitle(
                              paste("Non Invasive Blood Pressure",
                              "systolic distribution among patients")),
@@ -422,6 +441,7 @@ server <- function(input, output, session) {
                            scale_x_continuous(
                              breaks = seq(0, 250, 5), 
                              lim = c(0, 250)) +
+                           xlab('Non Invasive Blood Pressure diastolic') + 
                            ggtitle(paste("Non Invasive Blood Pressure",
                            "diastolic distribution among patients"))
           )
@@ -437,6 +457,7 @@ server <- function(input, output, session) {
                              breaks = seq(90, 180, 5),
                              lim = c(90, 180)
                              ) +
+                           xlab('Sodium') + 
                            ggtitle("Sodium distribution among patients"),
                          
                          "Glucose" = ggplot(data = mimic_icu_cohort) +
@@ -448,6 +469,7 @@ server <- function(input, output, session) {
                              breaks = seq(0, 600, 20),
                              lim = c(0, 600)
                              ) +
+                           xlab('Glucose') + 
                            ggtitle("Glucose distribution among patients"),
                          
                          "Potassium" = ggplot(data = mimic_icu_cohort) +
@@ -459,6 +481,7 @@ server <- function(input, output, session) {
                              breaks = seq(0, 10, 2),
                              lim = c(0, 10)
                              ) +
+                           xlab('Potassium') + 
                            ggtitle("Potassium distribution among patients"),
                          
                          "Chloride" = ggplot(data = mimic_icu_cohort) +
@@ -470,6 +493,7 @@ server <- function(input, output, session) {
                              breaks = seq(60, 150, 5),
                              lim = c(60, 150)
                              ) +
+                           xlab('Chloride') + 
                            ggtitle("Chloride distribution among patients"),
                          
                          "Bicarbonate" = ggplot(data = mimic_icu_cohort) +
@@ -481,6 +505,7 @@ server <- function(input, output, session) {
                                breaks = seq(0, 50, 2),
                                lim = c(0, 50)
                                ) +
+                             xlab('Bicarbonate') + 
                              ggtitle("Bicarbonate distribution among patients"),
                          
                          "Creatinine" = ggplot(data = mimic_icu_cohort) +
@@ -492,6 +517,7 @@ server <- function(input, output, session) {
                                  breaks = seq(0, 10, 2),
                                  lim = c(0, 10)
                                  ) +
+                               xlab('Creatinine') + 
                                ggtitle(paste("Creatinine distribution",
                                "among patients")),
                          
@@ -504,6 +530,7 @@ server <- function(input, output, session) {
                                      breaks = seq(0, 70, 5),
                                      lim = c(0, 70)
                                      ) +
+                                   xlab('Hematocrit') + 
                                    ggtitle(paste("Hematocrit distribution",
                                    "among patients")),
                          
@@ -516,6 +543,7 @@ server <- function(input, output, session) {
                                          breaks = seq(0, 80, 2),
                                          lim = c(0, 80)
                                          ) +
+                                       xlab('White Blood Cells') + 
                                        ggtitle(paste("White Blood Cell Count",
                                        "distribution among patients"))
                          
@@ -525,19 +553,22 @@ server <- function(input, output, session) {
           plot <- switch(selectedSubCategory,
                          "First care unit" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(
-                             aes(x = first_careunit),
-                             fill = "blue"
+                             aes(x = first_careunit,
+                                 fill = first_careunit)
                              ) +
+                           xlab('') +
+                           guides(fill=guide_legend(title="First care unit")) +
+                           coord_flip() +
                            ggtitle("First care unit distribution among patients"),
-                         # "First care unit" = mimic_icu_cohort |>
-                         #   hchart("pie", hcaes(x = ))
-                         #   ,
                          
                          "Last care unit" = ggplot(data = mimic_icu_cohort) +
                            geom_bar(
-                             aes(x = last_careunit), 
-                             fill = "blue"
+                             aes(x = last_careunit,
+                                 fill = last_careunit)
                              ) +
+                           xlab('') + 
+                           guides(fill=guide_legend(title="Last care unit")) +
+                           coord_flip() +
                            ggtitle("Last care unit distribution among patients")
           )
         }
