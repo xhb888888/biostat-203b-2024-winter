@@ -12,7 +12,7 @@ format:
     toc-location: left
     code-fold: false
 execute:
-  eval: false
+  eval: True
 ---
 
 Display machine information:
@@ -38,17 +38,6 @@ library(gtsummary)
 library(tidyverse)
 ```
 
-```{r}
-a |> select(age_intime) |>
-  tbl_summary(type = all_continuous() ~ "continuous2",
-              statistic = all_continuous() ~ c(
-                "{N_nonmiss}",
-                "{median} ({p25}, {p75})",
-                "{min}, {max}"
-                ),
-              missing = "no"
-              )
-```
 
 ## Q1. Compile the ICU cohort in HW3 from the Google BigQuery database
 
@@ -121,7 +110,7 @@ Connect to the `patients` table.
 ```{r}
 # full patients table
 patients_tble <- tbl(con_bq, "patients") |>
-  show_query() |>
+  # show_query() |>
   print(width = Inf)
 ```
 
@@ -146,27 +135,18 @@ labevents_tble <- tbl(con_bq, "labevents") |>
                        51301, 50931)) |>
   left_join(select(dlabitems_tble, itemid, label), by = "itemid") |>
   left_join(
-    # select necessary columns in icustay_tble
     select(icustays_tble, subject_id, stay_id, intime),
     by = "subject_id"
     ) |>
-  # filter out storetime that is before intime which is caused by joining
-  # table above. Some people went ICU multiple times
   filter(storetime < intime) |>
   group_by(subject_id, stay_id, label) |>
-  # within the above group, sort by storetime in ascending order
-  # within the above group, slice the last row which is the last
-  # available measurement
   slice_max(order_by = storetime, n = 1) |>
-  # remove unnecessary columns
-  # select(-storetime, -intime) |>
-  # convert pivot long to pivot wide
   ungroup() |>
   select(-storetime, -intime, -itemid) |>
   group_by(subject_id, stay_id) |>
   pivot_wider(names_from = label, values_from = valuenum) |>
   arrange(subject_id) |>
-  show_query() |>
+  # show_query() |>
   print(width = Inf)
 ```
 
@@ -198,7 +178,7 @@ chartevents_tble <- tbl(con_bq, "chartevents") |>
     ) |>
   # filter out charttime that is during icu stay
   filter(charttime >= intime, charttime <= outtime) |>
-  # group by stay_id, itemid
+  # group by stay_id, label(itemid)
   group_by(stay_id, label) |>
   # within the above group, slice the first row which is the first vital
   slice_min(order_by = charttime, n = 1) |>
@@ -210,7 +190,7 @@ chartevents_tble <- tbl(con_bq, "chartevents") |>
   pivot_wider(names_from = label, values_from = valuenum) |>
   # sort by subject_id, stay_id in ascending order
   arrange(subject_id, stay_id) |>
-  show_query() |>
+  # show_query() |>
   print(width = Inf)
 ```
 
@@ -274,9 +254,20 @@ mimic_icu_cohort <- mimic_icu_cohort |> mutate(
   print(width = Inf)
 ```
 
+
 ```{r}
 # Summarize the data using tbl_summary(), stratified by los_long
-tbl_summary(mimic_icu_cohort, by = los_long)
+mimic_icu_cohort |>
+  select(first_careunit, last_careunit, los, admission_type,
+         admission_location, discharge_location, insurance,
+         language, marital_status, race, hospital_expire_flag,
+         gender, dod, Sodium, Glucose, Chloride, Potassium,
+         Potassium, Hematocrit, Bicarbonate, White_Blood_Cells,
+         Heart_Rate, Respiratory_Rate, Temperature_Fahrenheit, 
+         Non_Invasive_Blood_Pressure_systolic, 
+         Non_Invasive_Blood_Pressure_diastolic,
+         age_intime, los_long) |>
+  tbl_summary(by = los_long)
 ```
 
 ### Q1.9 Save the final tibble
@@ -284,6 +275,7 @@ tbl_summary(mimic_icu_cohort, by = los_long)
 Save the final tibble to an R data file `mimic_icu_cohort.rds` in the `mimiciv_shiny` folder.
 
 ```{r}
+#| eval: false
 # make a directory mimiciv_shiny
 if (!dir.exists("mimiciv_shiny")) {
   dir.create("mimiciv_shiny")

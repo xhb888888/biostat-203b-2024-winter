@@ -66,7 +66,6 @@ ui <- fluidPage(
              ),
              uiOutput("ADTorICU"),
              withSpinner(plotOutput("ggplotOutput"))
-             # dataTableOutput("patientDetails")
     )
   ),
   tableOutput("summaryOutput")
@@ -376,7 +375,10 @@ server <- function(input, output, session) {
                                                         ifelse(
                                                           language == '?',
                                                           'Unknown',
-                                                          language))) +
+                                                          language
+                                                          )
+                                                      )
+                                             ) +
                            geom_bar(aes(x = language, fill = language)) +
                            xlab('Language') +
                            ggtitle(paste("Language Spoken distribution",
@@ -568,7 +570,9 @@ server <- function(input, output, session) {
                                  fill = first_careunit)
                              ) +
                            xlab('') +
-                           guides(fill=guide_legend(title="First care unit")) +
+                           guides(
+                             fill = guide_legend(title = "First care unit")
+                             ) +
                            coord_flip() +
                            ggtitle(paste("First care unit distribution",
                                           "among patients")),
@@ -579,7 +583,7 @@ server <- function(input, output, session) {
                                  fill = last_careunit)
                              ) +
                            xlab('') + 
-                           guides(fill=guide_legend(title="Last care unit")) +
+                           guides(fill = guide_legend(title="Last care unit")) +
                            coord_flip() +
                            ggtitle(paste("Last care unit distribution",
                                          "among patients"))
@@ -601,6 +605,7 @@ server <- function(input, output, session) {
                          choices = mimic_icu_cohort$subject_id, 
                          server = TRUE) # Enable server-side selectize
   })
+  
   observe({
     selectedADTorICU <- input$ADTorICUdemo
     
