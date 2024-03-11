@@ -248,7 +248,8 @@ mimic_icu_cohort <- mimic_icu_cohort |> mutate(
     WHITE = str_subset(race, "WHITE"),
     OTHER = c("UNKNOWN", "AMERICAN INDIAN/ALASKA NATIVE", "MULTIPLE RACE/ETHNICITY", 
               "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER", "PORTUGUESE", 
-              "SOUTH AMERICAN")
+              "SOUTH AMERICAN", "PATIENT DECLINED TO ANSWER",
+              "UNABLE TO OBTAIN")
   )) |>
   mutate(los_long = los >= 2) |>
   print(width = Inf)
