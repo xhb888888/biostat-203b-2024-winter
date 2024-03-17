@@ -19,6 +19,11 @@ library(gtsummary)
 library(tidyverse)
 library(tidymodels)
 library(ranger)
+library(keras)
+#library(torch)
+library(stacks)
+library(kernlab)
+library(xgboost)
 ```
 
 ## Predicting ICU duration
@@ -130,7 +135,9 @@ logit_wf <- workflow() |>
 
 3. Train and tune the models using the training set.
 
+
 ```{r}
+# For regular grid search
 param_grid <- grid_regular(
   penalty(range = c(-6, 3)), 
   mixture(),
@@ -139,20 +146,45 @@ param_grid <- grid_regular(
 ```
 
 ```{r}
+# Random grip search which will use half of time as above 
+param_grid <- grid_random(
+  penalty(), 
+  mixture(),
+  size = 6
+  )
+```
+
+
+```{r}
 set.seed(203)
 
 folds <- vfold_cv(other, v = 5)
 ```
 
 ```{r}
+# Tuning using bayesian optimization
+(logit_fit <- logit_wf |>
+  tune_bayes(
+    resamples = folds,
+    iter = 10,
+    metrics = metric_set(roc_auc, accuracy),
+    control = control_bayes(verbose = TRUE, save_pred = FALSE)
+    )) |>
+  system.time()
+```
+
+```{r}
+# tuning using the grip seach
 (logit_fit <- logit_wf |>
   tune_grid(
     resamples = folds,
     grid = param_grid,
+    control = control_bayes(verbose = TRUE, save_pred = FALSE),
     metrics = metric_set(roc_auc, accuracy)
     )) |>
   system.time()
 ```
+
 ```{r}
 logit_fit |>
   # aggregate metrics from K folds
@@ -230,10 +262,19 @@ rf_wf <- workflow() |>
 ```
 
 ```{r}
-rf_param_grid <- grid_regular(
-  trees(range = c(100L, 500L)), 
+# # Exhaustive grid search
+# rf_param_grid <- grid_regular(
+#   trees(range = c(100L, 500L)), 
+#   mtry(range = c(1L, 5L)),
+#   levels = c(5, 5)
+#   )
+```
+
+```{r}
+rf_param_grid <- grid_random(
+  trees(),
   mtry(range = c(1L, 5L)),
-  levels = c(5, 5)
+  size = 2
   )
 ```
 
@@ -241,7 +282,6 @@ rf_param_grid <- grid_regular(
 set.seed(203)
 
 folds <- vfold_cv(other, v = 5)
-folds
 ```
 
 ```{r}
@@ -249,9 +289,11 @@ rf_fit <- rf_wf |>
   tune_grid(
     resamples = folds,
     grid = rf_param_grid,
-    metrics = metric_set(roc_auc, accuracy)
+    metrics = metric_set(roc_auc, accuracy),
+    control = control_bayes(verbose = TRUE, save_pred = FALSE),
     )
 ```
+
 ```{r}
 rf_fit |>
   collect_metrics() |>
@@ -287,8 +329,291 @@ final_fit_rf |>
   collect_metrics()
 ```
 
+#XGBoost
+
+```{r}
+gb_recipe <- 
+  recipe(
+    los_long ~ ., 
+    data = other
+  ) |>
+  step_impute_mean(Sodium) |>
+  step_impute_mean(Glucose) |>
+  step_impute_mean(Chloride) |>
+  step_impute_mean(Potassium) |>
+  step_impute_mean(Creatinine) |>
+  step_impute_mean(Hematocrit) |>
+  step_impute_mean(Bicarbonate) |>
+  step_impute_mean(White_Blood_Cells) |>
+  step_impute_mean(Heart_Rate) |>
+  step_impute_mean(Respiratory_Rate) |>
+  step_impute_mean(Temperature_Fahrenheit) |>
+  step_impute_mean(Non_Invasive_Blood_Pressure_systolic) |>
+  step_impute_mean(Non_Invasive_Blood_Pressure_diastolic) |>
+  step_impute_mode(marital_status) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_zv(all_numeric_predictors()) |>
+  print()
+```
+
+```{r}
+gb_mod <- 
+  boost_tree(
+    mode = "classification",
+    trees = 1000, 
+    tree_depth = tune(),
+    learn_rate = tune()
+  ) |> 
+  set_engine("xgboost")
+gb_mod
+```
+
+```{r}
+gb_wf <- workflow() |>
+  add_recipe(gb_recipe) |>
+  add_model(gb_mod)
+gb_wf
+```
+
+```{r}
+# gb_param_grid <- grid_regular(
+#   tree_depth(range = c(1L, 3L)),
+#   learn_rate(range = c(-5, 2), trans = log10_trans()),
+#   levels = c(3, 10)
+#   )
+# gb_param_grid
+```
+
+```{r}
+gb_param_grid <- grid_random(
+  tree_depth(range = c(1L, 3L)),
+  learn_rate(range = c(-5, 2), trans = log10_trans()),
+  size = 2
+  )
+gb_param_grid
+```
+
+
+```{r}
+set.seed(203)
+
+folds <- vfold_cv(other, v = 2)
+```
+
+```{r}
+gb_fit <- gb_wf |>
+  tune_grid(
+    resamples = folds,
+    grid = gb_param_grid,
+    metrics = metric_set(roc_auc, accuracy),
+    control = control_grid(verbose = TRUE, save_pred = TRUE)
+    )
+gb_fit
+```
+
+```{r}
+gb_fit |>
+  collect_metrics() |>
+  print(width = Inf) |>
+  filter(.metric == "roc_auc") |>
+  ggplot(mapping = aes(x = learn_rate, y = mean, color = factor(tree_depth))) +
+  geom_point() +
+  labs(x = "Learning Rate", y = "CV AUC") +
+  scale_x_log10()
+```
+
+```{r}
+best_gb <- gb_fit |>
+  select_best("roc_auc")
+```
+
+```{r}
+final_wf <- gb_wf |>
+  finalize_workflow(best_gb)
+```
+
+```{r}
+final_fit <- 
+  final_wf |>
+  last_fit(data_split)
+```
+
+```{r}
+final_fit |> 
+  collect_metrics()
+```
+# Model Stacking
+
+```{r}
+stack_recipe <- 
+  recipe(
+    los_long ~ ., 
+    data = other
+  ) |>
+  step_impute_mean(Sodium) |>
+  step_impute_mean(Glucose) |>
+  step_impute_mean(Chloride) |>
+  step_impute_mean(Potassium) |>
+  step_impute_mean(Creatinine) |>
+  step_impute_mean(Hematocrit) |>
+  step_impute_mean(Bicarbonate) |>
+  step_impute_mean(White_Blood_Cells) |>
+  step_impute_mean(Heart_Rate) |>
+  step_impute_mean(Respiratory_Rate) |>
+  step_impute_mean(Temperature_Fahrenheit) |>
+  step_impute_mean(Non_Invasive_Blood_Pressure_systolic) |>
+  step_impute_mean(Non_Invasive_Blood_Pressure_diastolic) |>
+  step_impute_mode(marital_status) |>
+  step_dummy(all_nominal_predictors()) |>
+  step_zv(all_numeric_predictors()) |> 
+  step_normalize(all_numeric_predictors()) |>
+  print()
+```
+
+```{r}
+set.seed(203)
+folds <- vfold_cv(other, v = 2)
+```
+
+```{r}
+logit_mod <- 
+  logistic_reg(
+    penalty = tune(), 
+    mixture = tune()
+  ) |> 
+  set_engine("glmnet", standardize = TRUE)
+
+logit_wf <- workflow() |>
+  add_recipe(stack_recipe) |>
+  add_model(logit_mod)
+
+logit_grid <- grid_regular(
+  penalty(range = c(-6, 3)), 
+  mixture(),
+  levels = c(100, 5)
+  )
+
+logit_res <- 
+  tune_grid(
+    object = logit_wf, 
+    resamples = folds, 
+    grid = logit_grid,
+    control = control_stack_grid()
+  )
+```
+
+```{r}
+rf_mod <- 
+  rand_forest(
+    mode = "classification",
+    # Number of predictors randomly sampled in each split
+    mtry = tune(),
+    # Number of trees in ensemble
+    trees = tune()
+  ) |>
+  set_engine("ranger")
+
+rf_wf <- workflow() |>
+  add_recipe(stack_recipe) |>
+  add_model(rf_mod)
+
+rf_grid <- grid_random(
+  trees(range = c(100L, 500L)), 
+  mtry(range = c(1L, 5L)),
+  size = 2
+  )
+
+rf_res <- 
+  tune_grid(
+    object = rf_wf, 
+    resamples = folds, 
+    grid = rf_grid,
+    control = control_stack_grid()
+  )
+```
+
+```{r}
+gb_mod <- 
+  boost_tree(
+    mode = "classification",
+    trees = 1000, 
+    tree_depth = tune(),
+    learn_rate = tune()
+  ) |> 
+  set_engine("xgboost")
+
+gb_wf <- workflow() |>
+  add_recipe(stack_recipe) |>
+  add_model(gb_mod)
+
+gb_grid <- grid_random(
+  tree_depth(range = c(1L, 3L)),
+  learn_rate(range = c(-5, 2), trans = log10_trans()),
+  size = 2
+  )
+
+gb_res <-
+  tune_grid(
+    object = gb_wf, 
+    resamples = folds, 
+    grid = gb_grid,
+    control = control_stack_grid()
+    )
+```
+
+```{r}
+model_st <- 
+  # initialize the stack
+  stacks() |>
+  # add candidate members
+  add_candidates(logit_res) |>
+  add_candidates(rf_res) |>
+  add_candidates(gb_res) |>
+  # determine how to combine their predictions
+  blend_predictions(
+    penalty = 10^(-6:2),
+    metrics = c("roc_auc")
+    ) |>
+  # fit the candidates with nonzero stacking coefficients
+  fit_members()
+```
+```{r}
+model_st
+```
+
+```{r}
+autoplot(model_st)
+```
+```{r}
+autoplot(model_st, type = "members")
+```
+
+```{r}
+autoplot(model_st, type = "weights")
+```
+
+```{r}
+collect_parameters(model_st, "rf_res")
+```
+
+```{r}
+pred <- test %>%
+  bind_cols(predict(model_st, ., type = "prob")) %>%
+  print(width = Inf)
+```
+
+```{r}
+yardstick::roc_auc(
+  pred,
+  truth = los_long,
+  contains(".pred_0")
+  )
+```
+
 
 4. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
+
+
 
 
 
