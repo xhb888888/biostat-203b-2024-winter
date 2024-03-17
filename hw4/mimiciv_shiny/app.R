@@ -664,9 +664,9 @@ server <- function(input, output, session) {
         race_char = toString(admission_filtered['race'])
         
         # store top three most occurrence diagonsis of the patient
-        diagnoses_info_1 = diagnoses_info['long_title'] |> slice(1)
-        diagnoses_info_2 = diagnoses_info['long_title'] |> slice(2)
-        diagnoses_info_3 = diagnoses_info['long_title'] |> slice(3)
+        diagnoses_info_1 = diagnoses_info['long_title'] |> dplyr::slice(1)
+        diagnoses_info_2 = diagnoses_info['long_title'] |> dplyr::slice(2)
+        diagnoses_info_3 = diagnoses_info['long_title'] |> dplyr::slice(3)
         
         procedure_info_count <- procedure_info |>
           count(long_title) |> 
