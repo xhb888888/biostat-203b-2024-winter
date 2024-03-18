@@ -246,7 +246,8 @@ mimic_icu_cohort <- mimic_icu_cohort |> mutate(
     BLACK = str_subset(race, "BLACK"),
     HISPANIC = str_subset(race, "HISPANIC"),
     WHITE = str_subset(race, "WHITE"),
-    OTHER = c("UNKNOWN", "AMERICAN INDIAN/ALASKA NATIVE", "MULTIPLE RACE/ETHNICITY", 
+    OTHER = c("UNKNOWN", "AMERICAN INDIAN/ALASKA NATIVE", 
+              "MULTIPLE RACE/ETHNICITY", 
               "NATIVE HAWAIIAN OR OTHER PACIFIC ISLANDER", "PORTUGUESE", 
               "SOUTH AMERICAN", "PATIENT DECLINED TO ANSWER",
               "UNABLE TO OBTAIN")
