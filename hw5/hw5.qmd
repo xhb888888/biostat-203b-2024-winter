@@ -19,11 +19,10 @@ library(gtsummary)
 library(tidyverse)
 library(tidymodels)
 library(ranger)
-library(keras)
-#library(torch)
 library(stacks)
 library(kernlab)
 library(xgboost)
+library(vip)
 ```
 
 ## Predicting ICU duration
@@ -53,17 +52,11 @@ mimiciv_icu_cohort <- mimiciv_icu_cohort |>
 ```
 
 ```{r}
-mimiciv_icu_cohort
-```
-```{r}
 mimiciv_icu_cohort <- mimiciv_icu_cohort |>
   mutate(los_long = ifelse(los_long == TRUE, 1, 0)) |>
   mutate(los_long = as.factor(los_long))
 ```
 
-```{r}
-mimiciv_icu_cohort
-```
 
 2. Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
 ```{r}
@@ -137,7 +130,7 @@ logit_wf <- workflow() |>
 
 
 ```{r}
-# For regular grid search
+# Exhaustive grid search
 param_grid <- grid_regular(
   penalty(range = c(-6, 3)), 
   mixture(),
@@ -146,12 +139,12 @@ param_grid <- grid_regular(
 ```
 
 ```{r}
-# Random grip search which will use half of time as above 
-param_grid <- grid_random(
-  penalty(), 
-  mixture(),
-  size = 6
-  )
+# # Random grid search
+# param_grid <- grid_random(
+#   penalty(), 
+#   mixture(),
+#   size = 6
+#   )
 ```
 
 
@@ -161,17 +154,6 @@ set.seed(203)
 folds <- vfold_cv(other, v = 5)
 ```
 
-```{r}
-# Tuning using bayesian optimization
-(logit_fit <- logit_wf |>
-  tune_bayes(
-    resamples = folds,
-    iter = 10,
-    metrics = metric_set(roc_auc, accuracy),
-    control = control_bayes(verbose = TRUE, save_pred = FALSE)
-    )) |>
-  system.time()
-```
 
 ```{r}
 # tuning using the grip seach
@@ -179,7 +161,7 @@ folds <- vfold_cv(other, v = 5)
   tune_grid(
     resamples = folds,
     grid = param_grid,
-    control = control_bayes(verbose = TRUE, save_pred = FALSE),
+    control = control_grid(verbose = TRUE, save_pred = FALSE),
     metrics = metric_set(roc_auc, accuracy)
     )) |>
   system.time()
@@ -214,8 +196,18 @@ final_wf_logit <- logit_wf |>
 final_fit_logit <- 
   final_wf_logit |>
   last_fit(data_split)
+
 final_fit_logit |> 
   collect_metrics()
+```
+
+```{r}
+final_model <- extract_fit_parsnip(final_fit_logit)
+coefficients <- tidy(final_model)
+print(coefficients)
+```
+```{r}
+vip(final_model, num_features = 20, method = "model")
 ```
 
 # Random Forest
@@ -252,7 +244,8 @@ rf_mod <-
     # Number of trees in ensemble
     trees = tune()
   ) |> 
-  set_engine("ranger")
+  set_engine("ranger", importance = "impurity") |>
+  set_mode("classification")
 rf_mod
 ```
 ```{r}
@@ -278,6 +271,7 @@ rf_param_grid <- grid_random(
   )
 ```
 
+
 ```{r}
 set.seed(203)
 
@@ -285,13 +279,14 @@ folds <- vfold_cv(other, v = 5)
 ```
 
 ```{r}
-rf_fit <- rf_wf |>
+(rf_fit <- rf_wf |>
   tune_grid(
     resamples = folds,
     grid = rf_param_grid,
     metrics = metric_set(roc_auc, accuracy),
-    control = control_bayes(verbose = TRUE, save_pred = FALSE),
-    )
+    control = control_grid(verbose = TRUE, save_pred = FALSE),
+    )) |>
+  system.time()
 ```
 
 ```{r}
@@ -328,6 +323,13 @@ final_fit_rf <-
 final_fit_rf |> 
   collect_metrics()
 ```
+
+```{r}
+final_fit_rf %>% 
+  extract_fit_parsnip() %>% 
+  vip(num_features = 20)
+```
+
 
 #XGBoost
 
@@ -376,6 +378,7 @@ gb_wf
 ```
 
 ```{r}
+# # Exhaustive grid search
 # gb_param_grid <- grid_regular(
 #   tree_depth(range = c(1L, 3L)),
 #   learn_rate(range = c(-5, 2), trans = log10_trans()),
@@ -385,6 +388,7 @@ gb_wf
 ```
 
 ```{r}
+# Randomly select hyperparmeters
 gb_param_grid <- grid_random(
   tree_depth(range = c(1L, 3L)),
   learn_rate(range = c(-5, 2), trans = log10_trans()),
@@ -406,7 +410,7 @@ gb_fit <- gb_wf |>
     resamples = folds,
     grid = gb_param_grid,
     metrics = metric_set(roc_auc, accuracy),
-    control = control_grid(verbose = TRUE, save_pred = TRUE)
+    control = control_grid(verbose = TRUE, save_pred = FALSE)
     )
 gb_fit
 ```
@@ -442,6 +446,14 @@ final_fit <-
 final_fit |> 
   collect_metrics()
 ```
+```{r}
+final_fit |> 
+  extract_fit_parsnip() |>
+  vip(num_features = 20)
+  
+```
+
+
 # Model Stacking
 
 ```{r}
@@ -490,7 +502,7 @@ logit_wf <- workflow() |>
 logit_grid <- grid_regular(
   penalty(range = c(-6, 3)), 
   mixture(),
-  levels = c(100, 5)
+  levels = c(5, 5)
   )
 
 logit_res <- 
@@ -549,7 +561,7 @@ gb_wf <- workflow() |>
 gb_grid <- grid_random(
   tree_depth(range = c(1L, 3L)),
   learn_rate(range = c(-5, 2), trans = log10_trans()),
-  size = 2
+  size = 4
   )
 
 gb_res <-
@@ -562,7 +574,7 @@ gb_res <-
 ```
 
 ```{r}
-model_st <- 
+(model_st <- 
   # initialize the stack
   stacks() |>
   # add candidate members
@@ -575,8 +587,10 @@ model_st <-
     metrics = c("roc_auc")
     ) |>
   # fit the candidates with nonzero stacking coefficients
-  fit_members()
+  fit_members()) |>
+  system.time()
 ```
+
 ```{r}
 model_st
 ```
@@ -612,6 +626,12 @@ yardstick::roc_auc(
 
 
 4. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
+
+**Answer:**
+
+The logistic regression performs the worst in this task. It has the lowest AUC and accuracy. The random forest and gradient boosting models perform similarly, with the random forest model having a slightly higher AUC and accuracy. The model stacking has the highest AUC and accuracy. 
+
+The three independent models have different ranking for feature importance. Here is the report of the top three variables selected in each model. Logistic regression selects 'heart rate', and 'first care unit', and 'hematocrit' as most important features. Random Forest selects 'white Blood cells', 'heart rate', 'non invasive blood pressure systolic' as most important features. XGBoost selects 'heart rate', 'non invasive blood pressure systolic', and 'temperature fahrenheit' as most important features. Among those features, Both three models agree that 'heart rate' is very important feature. Random Forest and XGBoost also agree that 'non invasive blood pressure systolic' is a important feature in predicting long ICU stays. The difference of feature importance rank between logistic regression and the other two models are reasonable since logistic regression is a linear model which may not capture the non-linear relationship between the features and the target variable. 
 
 
 
