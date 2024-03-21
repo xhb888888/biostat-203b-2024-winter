@@ -23,6 +23,7 @@ library(stacks)
 library(kernlab)
 library(xgboost)
 library(vip)
+library(ggplot2)
 ```
 
 ## Predicting ICU duration
@@ -33,7 +34,7 @@ Using the ICU cohort `mimiciv_icu_cohort.rds` you built in Homework 4, develop a
 
 **Answer:**
 
-We remove features that will not be used in this task. We also convert `los_long` to a factor variable so it can be used as the outcome variable in the model. 
+We removed features that will not be used in this task. We also converted `los_long` to a factor variable so it can be used as the outcome variable in the model. We checked the distribution of the outcome variable and found that the data is relatively balanced.
 
 ```{r}
 mimiciv_icu_cohort <- readRDS("./mimic_icu_cohort.rds")
@@ -55,6 +56,18 @@ mimiciv_icu_cohort <- mimiciv_icu_cohort |>
   mutate(los_long = ifelse(los_long == TRUE, 1, 0)) |>
   mutate(los_long = as.factor(los_long))
 ```
+
+```{r}
+# create a bar plot of the outcome variable
+mimiciv_icu_cohort |>
+  ggplot(aes(x = los_long)) +
+  geom_bar() +
+  labs(title = "Distribution of the outcome variable",
+       x = "ICU stay longer than 2 days",
+       y = "Count")
+```
+
+
 
 
 2. Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
@@ -89,6 +102,7 @@ dim(test)
 3. Train and tune the models using the training set.
 
 **Answer:** Three independent machine learning algorithm and one stacked model based on these three algorithms were tested in this section. Different parameter tuning methods were used because of the limitation of computation. All tuning were done on training set with 3 folds cross validation. The best set of parameters were selected based on the AUC score of the model. The entire workflow with the best set of parameters was applied to the test set to evaluate the performance of the model. Feature importances were also reported at the end of each model section. 
+
 
 # Logistic Regression
 
@@ -508,10 +522,9 @@ logit_res <-
 rf_mod <- 
   rand_forest(
     mode = "classification",
-    # Number of predictors randomly sampled in each split
     mtry = tune(),
-    # Number of trees in ensemble
-    trees = tune()
+    min_n = tune(),
+    trees = 1000
   ) |>
   set_engine("ranger")
 
@@ -519,10 +532,10 @@ rf_wf <- workflow() |>
   add_recipe(stack_recipe) |>
   add_model(rf_mod)
 
-rf_grid <- grid_random(
-  trees(range = c(100L, 500L)), 
+rf_grid <- grid_regular(
+  min_n(range = c(10, 100)), 
   mtry(range = c(1L, 5L)),
-  size = 2
+  levels = c(3, 3)
   )
 
 rf_res <- 
@@ -548,10 +561,10 @@ gb_wf <- workflow() |>
   add_recipe(stack_recipe) |>
   add_model(gb_mod)
 
-gb_grid <- grid_random(
+gb_grid <- grid_regular(
   tree_depth(range = c(1L, 3L)),
   learn_rate(range = c(-5, 2), trans = log10_trans()),
-  size = 4
+  levels = c(3, 3)
   )
 
 gb_res <-
@@ -596,6 +609,9 @@ autoplot(model_st, type = "members")
 ```{r}
 autoplot(model_st, type = "weights")
 ```
+```{r}
+collect_parameters(model_st, "gb_res")
+```
 
 ```{r}
 collect_parameters(model_st, "rf_res")
@@ -606,6 +622,16 @@ pred <- test %>%
   bind_cols(predict(model_st, ., type = "prob")) %>%
   print(width = Inf)
 ```
+```{r}
+pred$predicted_class <- ifelse(pred$.pred_1 > 0.5, 1, 0) |> as.factor()
+```
+
+```{r}
+accuracy_result <- accuracy(pred, truth = los_long, estimate = predicted_class)
+print(accuracy_result)
+```
+
+
 
 ```{r}
 yardstick::roc_auc(
@@ -614,6 +640,8 @@ yardstick::roc_auc(
   contains(".pred_0")
   )
 ```
+**Summary:** The AUC for the stacked model is approximately 0.6471 and the accuracy is approximately 0.6062 on testset. It ends up with a stacked model containing 7 models. Three gradient boosted models, three random forest models, and one logistic regression model. Among those models in final stacked model, the gradient boosted model with learning rate of 0.03162278 and tree depth of 3 has the highest coefficient. 
+
 
 
 4. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
