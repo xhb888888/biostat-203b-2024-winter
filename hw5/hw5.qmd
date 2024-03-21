@@ -31,17 +31,16 @@ Using the ICU cohort `mimiciv_icu_cohort.rds` you built in Homework 4, develop a
 
 1. Data preprocessing and feature engineering.
 
-```{bash}
-# Create symbolic link and read in the data
-ln -s ~/Desktop/UCLA_courses/biostat-203B-2024-winter/203b-hw/hw4/mimiciv_shiny ./mimiciv_shiny
+**Answer:**
 
+We remove features that will not be used in this task. We also convert `los_long` to a factor variable so it can be used as the outcome variable in the model. 
+
+```{r}
+mimiciv_icu_cohort <- readRDS("./mimic_icu_cohort.rds")
 ```
 
 ```{r}
-mimiciv_icu_cohort <- readRDS("./mimiciv_shiny/mimic_icu_cohort.rds")
-```
-
-```{r}
+# Remove features that will not be used in this task
 mimiciv_icu_cohort <- mimiciv_icu_cohort |>
   arrange(subject_id, hadm_id, stay_id) |>
   select(-c(subject_id, hadm_id, stay_id, last_careunit, intime, outtime, 
@@ -59,8 +58,13 @@ mimiciv_icu_cohort <- mimiciv_icu_cohort |>
 
 
 2. Partition data into 50% training set and 50% test set. Stratify partitioning according to `los_long`. For grading purpose, sort the data by `subject_id`, `hadm_id`, and `stay_id` and use the seed `203` for the initial data split. Below is the sample code.
+
+**Answer:**
+
+Data is split into 50% training set and 50% test set. The split is stratified according to `los_long`. The data has been sorted in the previous question.
+
 ```{r}
-#| eval: false
+#| eval: True
 set.seed(203)
 
 data_split <- initial_split(
@@ -82,8 +86,14 @@ test <- testing(data_split)
 dim(test)
 ```
 
+3. Train and tune the models using the training set.
+
+**Answer:** Three independent machine learning algorithm and one stacked model based on these three algorithms were tested in this section. Different parameter tuning methods were used because of the limitation of computation. All tuning were done on training set with 3 folds cross validation. The best set of parameters were selected based on the AUC score of the model. The entire workflow with the best set of parameters was applied to the test set to evaluate the performance of the model. Feature importances were also reported at the end of each model section. 
+
 # Logistic Regression
+
 ```{r}
+# Impute the missing values and normalize the data
 logit_recipe <- 
   recipe(
     los_long ~ ., 
@@ -108,7 +118,9 @@ logit_recipe <-
   step_normalize(all_numeric_predictors()) |>
   print()
 ```
+
 ```{r}
+# Define parameters to tune in later steps
 logit_mod <- 
   logistic_reg(
     penalty = tune(), 
@@ -125,10 +137,6 @@ logit_wf <- workflow() |>
   print()
 ```
 
-
-3. Train and tune the models using the training set.
-
-
 ```{r}
 # Exhaustive grid search
 param_grid <- grid_regular(
@@ -138,20 +146,11 @@ param_grid <- grid_regular(
   )
 ```
 
-```{r}
-# # Random grid search
-# param_grid <- grid_random(
-#   penalty(), 
-#   mixture(),
-#   size = 6
-#   )
-```
-
 
 ```{r}
 set.seed(203)
 
-folds <- vfold_cv(other, v = 5)
+folds <- vfold_cv(other, v = 3)
 ```
 
 
@@ -169,7 +168,7 @@ folds <- vfold_cv(other, v = 5)
 
 ```{r}
 logit_fit |>
-  # aggregate metrics from K folds
+  # aggregate metrics from 3 folds
   collect_metrics() |>
   print(width = Inf) |>
   filter(.metric == "roc_auc") |>
@@ -210,9 +209,12 @@ print(coefficients)
 vip(final_model, num_features = 20, method = "model")
 ```
 
+**Summary:** The AUC is 0.5964 and the accuracy is 0.5754 on the test set. The most important features with relative similar importance are 'first care units' and 'heart rate'.
+
 # Random Forest
 
 ```{r}
+# Impute the missing values and normalize the data
 rf_recipe <- 
   recipe(
     los_long ~ ., 
@@ -235,19 +237,21 @@ rf_recipe <-
   step_zv(all_numeric_predictors()) |>
   print()
 ```
+
 ```{r}
+# Define parameters to tune in later steps
 rf_mod <- 
   rand_forest(
     mode = "classification",
-    # Number of predictors randomly sampled in each split
     mtry = tune(),
-    # Number of trees in ensemble
-    trees = tune()
+    min_n = tune(),
+    trees = 1000
   ) |> 
   set_engine("ranger", importance = "impurity") |>
   set_mode("classification")
 rf_mod
 ```
+
 ```{r}
 rf_wf <- workflow() |>
   add_recipe(rf_recipe) |>
@@ -255,19 +259,11 @@ rf_wf <- workflow() |>
 ```
 
 ```{r}
-# # Exhaustive grid search
-# rf_param_grid <- grid_regular(
-#   trees(range = c(100L, 500L)), 
-#   mtry(range = c(1L, 5L)),
-#   levels = c(5, 5)
-#   )
-```
-
-```{r}
-rf_param_grid <- grid_random(
-  trees(),
+# Exhaustive grid search
+rf_param_grid <- grid_regular(
+  min_n(range = c(10, 100)),
   mtry(range = c(1L, 5L)),
-  size = 2
+  levels = c(3, 3)
   )
 ```
 
@@ -275,7 +271,7 @@ rf_param_grid <- grid_random(
 ```{r}
 set.seed(203)
 
-folds <- vfold_cv(other, v = 5)
+folds <- vfold_cv(other, v = 3)
 ```
 
 ```{r}
@@ -294,10 +290,10 @@ rf_fit |>
   collect_metrics() |>
   print(width = Inf) |>
   filter(.metric == "roc_auc") |>
-  ggplot(mapping = aes(x = trees, y = mean, color = factor(mtry))) +
+  ggplot(mapping = aes(x = min_n, y = mean, color = factor(mtry))) +
   geom_point() + 
   # geom_line() + 
-  labs(x = "Num. of Trees", y = "CV AUC")
+  labs(x = "Min of Sample Split", y = "CV AUC")
 ```
 
 ```{r}
@@ -309,7 +305,6 @@ rf_fit |>
 best_rf <- rf_fit |>
   select_best("roc_auc")
 ```
-
 
 ```{r}
 final_wf_rf <- rf_wf |>
@@ -330,10 +325,12 @@ final_fit_rf %>%
   vip(num_features = 20)
 ```
 
+**Summary:** The AUC is 0.6390 and the accuracy is 0.6014 on the test set. The most important features with relative similar importance are 'white blood cells', 'hematocrit', 'non invasive blood pressure systolic', and 'heart rate'.
 
-#XGBoost
+# XGBoost
 
 ```{r}
+# Impute the missing values and normalize the data
 gb_recipe <- 
   recipe(
     los_long ~ ., 
@@ -359,6 +356,7 @@ gb_recipe <-
 ```
 
 ```{r}
+# Define parameters to tune in later steps
 gb_mod <- 
   boost_tree(
     mode = "classification",
@@ -378,30 +376,19 @@ gb_wf
 ```
 
 ```{r}
-# # Exhaustive grid search
-# gb_param_grid <- grid_regular(
-#   tree_depth(range = c(1L, 3L)),
-#   learn_rate(range = c(-5, 2), trans = log10_trans()),
-#   levels = c(3, 10)
-#   )
-# gb_param_grid
-```
-
-```{r}
-# Randomly select hyperparmeters
-gb_param_grid <- grid_random(
+# Exhaustive grid search
+gb_param_grid <- grid_regular(
   tree_depth(range = c(1L, 3L)),
   learn_rate(range = c(-5, 2), trans = log10_trans()),
-  size = 2
+  levels = c(3, 3)
   )
-gb_param_grid
 ```
 
 
 ```{r}
 set.seed(203)
 
-folds <- vfold_cv(other, v = 2)
+folds <- vfold_cv(other, v = 3)
 ```
 
 ```{r}
@@ -446,6 +433,7 @@ final_fit <-
 final_fit |> 
   collect_metrics()
 ```
+
 ```{r}
 final_fit |> 
   extract_fit_parsnip() |>
@@ -453,10 +441,12 @@ final_fit |>
   
 ```
 
+**Summary:** The AUC is 0.6449 and the accuracy is 0.6035 on the test set. The most important features is "Temperature".
 
 # Model Stacking
 
 ```{r}
+# Impute the missing values and normalize the data
 stack_recipe <- 
   recipe(
     los_long ~ ., 
@@ -484,7 +474,7 @@ stack_recipe <-
 
 ```{r}
 set.seed(203)
-folds <- vfold_cv(other, v = 2)
+folds <- vfold_cv(other, v = 3)
 ```
 
 ```{r}
@@ -598,6 +588,7 @@ model_st
 ```{r}
 autoplot(model_st)
 ```
+
 ```{r}
 autoplot(model_st, type = "members")
 ```
