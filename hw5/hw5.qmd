@@ -162,6 +162,7 @@ param_grid <- grid_regular(
 
 
 ```{r}
+# 3 folds cross validation
 set.seed(203)
 
 folds <- vfold_cv(other, v = 3)
@@ -169,22 +170,22 @@ folds <- vfold_cv(other, v = 3)
 
 
 ```{r}
-# tuning using the grip seach
+# tuning using the grip search
 (logit_fit <- logit_wf |>
   tune_grid(
     resamples = folds,
     grid = param_grid,
-    control = control_grid(verbose = TRUE, save_pred = FALSE),
+    control = control_grid(verbose = FALSE, save_pred = FALSE),
     metrics = metric_set(roc_auc, accuracy)
     )) |>
   system.time()
 ```
 
 ```{r}
+# Plot to see how different combination of parameters perform
 logit_fit |>
   # aggregate metrics from 3 folds
   collect_metrics() |>
-  print(width = Inf) |>
   filter(.metric == "roc_auc") |>
   ggplot(mapping = aes(x = penalty, y = mean, color = factor(mixture))) +
   geom_point() +
@@ -215,11 +216,13 @@ final_fit_logit |>
 ```
 
 ```{r}
+# Here is the parameter estimates of the logistic regression model 
 final_model <- extract_fit_parsnip(final_fit_logit)
 coefficients <- tidy(final_model)
 print(coefficients)
 ```
 ```{r}
+# Show feature importance
 vip(final_model, num_features = 20, method = "model")
 ```
 
@@ -259,6 +262,9 @@ rf_mod <-
     mode = "classification",
     mtry = tune(),
     min_n = tune(),
+    # tree can be a tuning parameter but it seems like the more trees in the
+    # model, the better performance it will be. Therefore, we fix the amount
+    # of tree for this task
     trees = 1000
   ) |> 
   set_engine("ranger", importance = "impurity") |>
@@ -283,6 +289,7 @@ rf_param_grid <- grid_regular(
 
 
 ```{r}
+# 3 folds cross validation
 set.seed(203)
 
 folds <- vfold_cv(other, v = 3)
@@ -294,15 +301,16 @@ folds <- vfold_cv(other, v = 3)
     resamples = folds,
     grid = rf_param_grid,
     metrics = metric_set(roc_auc, accuracy),
-    control = control_grid(verbose = TRUE, save_pred = FALSE),
+    control = control_grid(verbose = FALSE, save_pred = FALSE),
     )) |>
   system.time()
 ```
 
 ```{r}
+# Plot to see how different combination of parameters perform
 rf_fit |>
   collect_metrics() |>
-  print(width = Inf) |>
+  # print(width = Inf) |>
   filter(.metric == "roc_auc") |>
   ggplot(mapping = aes(x = min_n, y = mean, color = factor(mtry))) +
   geom_point() + 
@@ -334,8 +342,9 @@ final_fit_rf |>
 ```
 
 ```{r}
-final_fit_rf %>% 
-  extract_fit_parsnip() %>% 
+# Show feature importance
+final_fit_rf |>
+  extract_fit_parsnip() |>
   vip(num_features = 20)
 ```
 
@@ -400,6 +409,7 @@ gb_param_grid <- grid_regular(
 
 
 ```{r}
+# 3 folds cross validation
 set.seed(203)
 
 folds <- vfold_cv(other, v = 3)
@@ -411,15 +421,16 @@ gb_fit <- gb_wf |>
     resamples = folds,
     grid = gb_param_grid,
     metrics = metric_set(roc_auc, accuracy),
-    control = control_grid(verbose = TRUE, save_pred = FALSE)
+    control = control_grid(verbose = FALSE, save_pred = FALSE)
     )
 gb_fit
 ```
 
 ```{r}
+# Plot to see how different combination of parameters perform
 gb_fit |>
   collect_metrics() |>
-  print(width = Inf) |>
+  # print(width = Inf) |>
   filter(.metric == "roc_auc") |>
   ggplot(mapping = aes(x = learn_rate, y = mean, color = factor(tree_depth))) +
   geom_point() +
@@ -492,6 +503,7 @@ folds <- vfold_cv(other, v = 3)
 ```
 
 ```{r}
+# Logistic Regression
 logit_mod <- 
   logistic_reg(
     penalty = tune(), 
@@ -519,6 +531,7 @@ logit_res <-
 ```
 
 ```{r}
+# Random Forest
 rf_mod <- 
   rand_forest(
     mode = "classification",
@@ -548,6 +561,7 @@ rf_res <-
 ```
 
 ```{r}
+# Gradient Boosting
 gb_mod <- 
   boost_tree(
     mode = "classification",
@@ -577,6 +591,7 @@ gb_res <-
 ```
 
 ```{r}
+# Stacking the three candidate models
 (model_st <- 
   # initialize the stack
   stacks() |>
@@ -595,38 +610,48 @@ gb_res <-
 ```
 
 ```{r}
+# Information of the members in stacked model
 model_st
 ```
 
 ```{r}
+# Plot to see how penalty changes the model performance
 autoplot(model_st)
 ```
 
 ```{r}
+# Plot to see how number of models in stacked model change the performance
 autoplot(model_st, type = "members")
 ```
 
+
 ```{r}
+# Plot to see how the weights of each model in the final stacked model
 autoplot(model_st, type = "weights")
 ```
 ```{r}
+# Examine parameters of each gradient boosting model
 collect_parameters(model_st, "gb_res")
 ```
 
 ```{r}
+# Examine parameters of each random forest model
 collect_parameters(model_st, "rf_res")
 ```
 
 ```{r}
+# Show our predicted result on testset
 pred <- test %>%
   bind_cols(predict(model_st, ., type = "prob")) %>%
   print(width = Inf)
 ```
 ```{r}
+# Use probability 0.5 as threshhold to convert probability to true/false
 pred$predicted_class <- ifelse(pred$.pred_1 > 0.5, 1, 0) |> as.factor()
 ```
 
 ```{r}
+# Show accuracy
 accuracy_result <- accuracy(pred, truth = los_long, estimate = predicted_class)
 print(accuracy_result)
 ```
@@ -634,6 +659,7 @@ print(accuracy_result)
 
 
 ```{r}
+# Show AUC
 yardstick::roc_auc(
   pred,
   truth = los_long,
