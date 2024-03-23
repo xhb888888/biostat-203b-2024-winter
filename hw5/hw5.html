@@ -3160,7 +3160,7 @@ vertical-align: -.125em;
 ✖ dplyr::lag()           masks stats::lag()
 ✖ yardstick::spec()      masks readr::spec()
 ✖ recipes::step()        masks stats::step()
-• Learn how to get started at https://www.tidymodels.org/start/</code></pre>
+• Search for functions across packages at https://www.tidymodels.org/find/</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ranger)</span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stacks)</span>
@@ -3280,7 +3280,7 @@ The following object is masked from &#39;package:utils&#39;:
 <ol start="3" type="1">
 <li>Train and tune the models using the training set.</li>
 </ol>
-<p><strong>Answer:</strong> Three independent machine learning algorithm and one stacked model based on these three algorithms were tested in this section. Different parameter tuning methods were used because of the limitation of computation. All tuning were done on training set with 3 folds cross validation. The best set of parameters were selected based on the AUC score of the model. The entire workflow with the best set of parameters was applied to the test set to evaluate the performance of the model. Feature importances were also reported at the end of each model section.</p>
+<p><strong>Answer:</strong> Three independent machine learning algorithms and one stacked model based on these three algorithms were tested in this section. We tuned parameters of each model on training set with 5 folds cross validation. The best set of parameters were selected based on the AUC score of model in each set of parameter. The entire workflow with the best set of parameters was applied to the test set to evaluate the performance of the model. Feature importance were extracted and reported at the end of each model.</p>
 </section>
 <section id="logistic-regression" class="level1">
 <h1>Logistic Regression</h1>
@@ -3474,7 +3474,7 @@ Computational engine: glmnet </code></pre>
 <span id="cb59-9"><a href="#cb59-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.time</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
- 24.696   1.544  26.261 </code></pre>
+ 24.541   1.155  25.702 </code></pre>
 </div>
 </div>
 <div class="cell">
@@ -3728,7 +3728,7 @@ Computational engine: ranger </code></pre>
 <span id="cb100-9"><a href="#cb100-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">system.time</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-796.548  17.031 606.878 </code></pre>
+788.586  15.900 599.642 </code></pre>
 </div>
 </div>
 <div class="cell">
@@ -4282,7 +4282,7 @@ passed: &#39;metrics&#39;</code></pre>
 </div>
 <div class="cell-output cell-output-stdout">
 <pre><code>   user  system elapsed 
-157.875   1.766 159.756 </code></pre>
+157.076   1.752 158.903 </code></pre>
 </div>
 </div>
 <div class="cell">
@@ -4480,12 +4480,12 @@ The 5 highest weighted member classes are:</code></pre>
 1 roc_auc binary         0.648</code></pre>
 </div>
 </div>
-<p><strong>Summary:</strong> The AUC for the stacked model is approximately 0.647 and the accuracy is approximately 0.606 on testset. It ends up with a stacked model containing 5 models. Three gradient boosted models, one random forest models, and one logistic regression model. Among those models in final stacked model, one random forest model and one gradient boosted model have comparatively high weights. The random forest model has the highest weight among all models.</p>
+<p><strong>Summary:</strong> The AUC for the stacked model is approximately 0.648 and the accuracy is approximately 0.606 on testset. It ends up with a stacked model containing 5 models. Three gradient boosted models, one random forest models, and one logistic regression model. Among those models in final stacked model, one random forest model and one gradient boosted model have comparatively high weights. The random forest model has the highest weight among all models.</p>
 <ol start="4" type="1">
 <li>Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?</li>
 </ol>
 <p><strong>Answer:</strong></p>
-<p>The logistic regression has an AUC of 0.596 and accuracy of 0.575. The random forest has an AUC of 0.639 and accuracy of 0.601. The gradient boosting has an AUC of 0.645 and accuracy of 0.603. The model stacking has an AUC of 0.647 and accuracy of 0.606.</p>
+<p>The logistic regression has an AUC of 0.596 and accuracy of 0.575. The random forest has an AUC of 0.639 and accuracy of 0.601. The gradient boosting has an AUC of 0.645 and accuracy of 0.603. The model stacking has an AUC of 0.648 and accuracy of 0.606.</p>
 <p>The logistic regression performs the worst in this task. It has the lowest AUC and accuracy. The performance of gradient boosting model is slightly better than that of random forest. The stacked model has the highest AUC and accuracy but it is not significantly better than the gradient boosting model alone.</p>
 <p>The three independent models have different ranking for feature importance. Here is the report of the variables with similar importance in each model. Logistic regression selects ‘heart rate’ and ‘first care unit’ as most important features. Random Forest selects ‘white Blood cells’, ‘hematocrit’, ‘heart rate’, ‘non invasive blood pressure systolic’, and ‘body temperature’ as the most important features. Gradient Boosting selects ‘body temperature’ of the patient as the most important feature. Among those features, both logistic regression and random forest agree that ‘heart rate’ is a very important feature in predicting long ICU stays. Both random forest and gradient boosting agrees that ‘body temperature’ is a very important feature in predicting long ICU stays. The difference of feature importance rank between logistic regression and the other two models are reasonable since logistic regression is a linear model which may not capture the non-linear relationship between the features and the target variable. The difference between random forest and gradient boosting is also reasonable since random forest is an ensemble of decision trees and gradient boosting is a boosting algorithm which builds trees sequentially where each tree tries to correct the errors of the previous tree. Feature importance in random forest is based on how much each feature decreases the impurity in the nodes of the tree, while feature importance in gradient boosting is based on how much in average each feature contributes to the improvement of the model. Different mechanism results in different feature importance rank. Given these backgrounds, I argue that ‘heart rate’ and ‘body temperature’ are the most important features in predicting long ICU stays since they are selected in two out of three models.</p>
 <p>In terms of interpretability, logistic regression is the most interpretable model since it is a linear model but it has the worst performance. Random forest and gradient boosting are less interpretable since they are ensemble models but they have much better performance than the logistic regression. Model stacking is the least interpretable model since it is a combination of multiple models. However, stacked model has the best performance among all models. In this case, the choice of model should be based on the trade-off between performance and interpretability. If the interpretability is more important, logistic regression should be chosen. If the performance is more important, gradient boosting should be chosen. If the trade-off between performance and interpretability is acceptable, random forest should be chosen. If the best performance is required, stacked model should be chosen.</p>

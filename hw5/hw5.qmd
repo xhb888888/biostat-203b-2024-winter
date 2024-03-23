@@ -101,7 +101,7 @@ dim(test)
 
 3. Train and tune the models using the training set.
 
-**Answer:** Three independent machine learning algorithm and one stacked model based on these three algorithms were tested in this section. Different parameter tuning methods were used because of the limitation of computation. All tuning were done on training set with 3 folds cross validation. The best set of parameters were selected based on the AUC score of the model. The entire workflow with the best set of parameters was applied to the test set to evaluate the performance of the model. Feature importances were also reported at the end of each model section. 
+**Answer:** Three independent machine learning algorithms and one stacked model based on these three algorithms were tested in this section. We tuned parameters of each model on training set with 5 folds cross validation. The best set of parameters were selected based on the AUC score of model in each set of parameter. The entire workflow with the best set of parameters was applied to the test set to evaluate the performance of the model. Feature importance were extracted and reported at the end of each model. 
 
 
 # Logistic Regression
@@ -683,15 +683,14 @@ yardstick::roc_auc(
   contains(".pred_0")
   )
 ```
-**Summary:** The AUC for the stacked model is approximately 0.647 and the accuracy is approximately 0.606 on testset. It ends up with a stacked model containing 5 models. Three gradient boosted models, one random forest models, and one logistic regression model. Among those models in final stacked model, one random forest model and one gradient boosted model have comparatively high weights. The random forest model has the highest weight among all models. 
 
-
+**Summary:** The AUC for the stacked model is approximately 0.648 and the accuracy is approximately 0.606 on testset. It ends up with a stacked model containing 5 models. Three gradient boosted models, one random forest models, and one logistic regression model. Among those models in final stacked model, one random forest model and one gradient boosted model have comparatively high weights. The random forest model has the highest weight among all models. 
 
 4. Compare model classification performance on the test set. Report both the area under ROC curve and accuracy for each machine learning algorithm and the model stacking. Interpret the results. What are the most important features in predicting long ICU stays? How do the models compare in terms of performance and interpretability?
 
 **Answer:**
 
-The logistic regression has an AUC of 0.596 and accuracy of 0.575. The random forest has an AUC of 0.639 and accuracy of 0.601. The gradient boosting has an AUC of 0.645 and accuracy of 0.603. The model stacking has an AUC of 0.647 and accuracy of 0.606.
+The logistic regression has an AUC of 0.596 and accuracy of 0.575. The random forest has an AUC of 0.639 and accuracy of 0.601. The gradient boosting has an AUC of 0.645 and accuracy of 0.603. The model stacking has an AUC of 0.648 and accuracy of 0.606.
 
 The logistic regression performs the worst in this task. It has the lowest AUC and accuracy. The performance of gradient boosting model is slightly better than that of random forest. The stacked model has the highest AUC and accuracy but it is not significantly better than the gradient boosting model alone.
 
